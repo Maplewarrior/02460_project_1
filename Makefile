@@ -50,7 +50,8 @@ sample_ddpm_ep180:
 	
 TRAIN_FLOW_CMD = python $(PROJECT_NAME)/part2/main.py train --model-type flow \
 		--num-transformations 30 --num-hidden 256 --mask-type cb \
-		--batch-size 32 --epochs 5 --model models/flow.pt
+		--batch-size 32 --epochs 2 --model models/flow.pt \
+		--continue-train true
 train_flow:
 	$(TRAIN_FLOW_CMD)
 train_flow_cuda:

@@ -247,7 +247,8 @@ if __name__ == "__main__":
             samples = (model.sample((n_samples,))).cpu() if args.model_type == 'flow'  else (model.sample((n_samples,D))).cpu()
 
             # Transform the samples back to the original space
-            samples = samples / 2 + 0.5
+            if args.model_type == 'ddpm':
+                samples = samples / 2 + 0.5 # ! enable for DDPM!
             for i in range(n_samples):
                 save_path =  f"{(args.samples).split('.pdf')[0]}_{i}.pdf" # make save_path in format {save_loc}/{filename}_{1,2,...,n_samples}.{ext}
                 save_image(samples[i].view(1, 1, 28, 28), save_path, format='pdf')
