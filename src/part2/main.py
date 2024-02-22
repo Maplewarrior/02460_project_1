@@ -69,7 +69,11 @@ def make_mnist_data():
     
     return train_loader, test_loader
 
-def make_flow_model(D, mask_type = "default", device = "cpu", num_transformations = 8, num_hidden = 5):
+def make_flow_model(D, 
+                    mask_type = "default", 
+                    device = "cpu", 
+                    num_transformations = 8, 
+                    num_hidden = 5):
     """ Make a flow model. 
     
     Args:
@@ -128,11 +132,8 @@ def make_flow_model(D, mask_type = "default", device = "cpu", num_transformation
     model = Flow(base, transformations).to(device)
     return model
 
-"""
-params: 
-@T: number of steps in the diffusion process, default=1_000
-"""
-def make_ddpm(T = 1_000, continue_train=False):
+def make_ddpm(T = 1_000, 
+              continue_train=False):
     """
     params: 
     @T: number of steps in the diffusion process, default=1_000

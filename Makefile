@@ -45,6 +45,10 @@ sample_ddpm_ep180:
 	
 train_flow:
 	python $(PROJECT_NAME)/part2/main.py train --model-type flow --device mps --batch-size 128 --epochs 10 --model models/flow.pt
+train_flow_cuda:
+	python $(PROJECT_NAME)/part2/main.py train --model-type flow --device cuda --batch-size 128 --epochs 10 --model models/flow.pt --mask random
 
 sample_flow: 
 	python $(PROJECT_NAME)/part2/main.py sample --model-type flow --device mps --samples samples/flow/flow_samples.pdf --model models/flow.pt
+sample_flow_cuda: 
+	python $(PROJECT_NAME)/part2/main.py sample --model-type flow --device cuda --samples samples/flow/flow_samples.pdf --model models/flow.pt --mask random
