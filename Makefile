@@ -77,7 +77,7 @@ batch_sample_flow_cuda:
 	--num-samples 1000 --num-transformations 30 --num-hidden 256 --mask-type random
 
 fid_ddpm_cuda:
-	python $(PROJECT_NAME)/part2/fid.py --sample_folder samples/ddpm  --device cuda
+	python $(PROJECT_NAME)/part2/fid.py --sample-folder samples/ddpm/batch_samples  --device cuda
 
 fid_flow_cuda:
-	python $(PROJECT_NAME)/part2/fid.py --sample_folder samples/flow  --device cuda
+	python $(PROJECT_NAME)/part2/fid.py --sample-folder samples/flow//batch_samples  --device cuda
