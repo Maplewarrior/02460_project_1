@@ -227,7 +227,8 @@ if __name__ == "__main__":
         model.eval()
         with torch.no_grad():
             n_samples = 4
-            samples = (model.sample((n_samples,D))).cpu()
+            samples = (model.sample((n_samples,))).cpu() if args.model_type == 'flow'  else (model.sample((n_samples,D))).cpu()
+
             # Transform the samples back to the original space
             samples = samples / 2 + 0.5
             for i in range(n_samples):
