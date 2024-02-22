@@ -133,6 +133,11 @@ params:
 @T: number of steps in the diffusion process, default=1_000
 """
 def make_ddpm(T = 1_000):
+def make_ddpm(T = 1_000, continue_train=False):
+    """
+    params: 
+    @T: number of steps in the diffusion process, default=1_000
+    """
     from src.models.unet import Unet
     from src.models.ddpm import DDPM
 
@@ -141,14 +146,27 @@ def make_ddpm(T = 1_000):
 
     # Define model
     model = DDPM(network, T=T).to(args.device)
-    if args.continue_train == True:
+    if continue_train == True:
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
 
     return model
 
-def make_vae():
-    # from src.models
-    raise Exception("flow model initialization not implemented yet!")
+def make_vae(M = 32):
+    """
+    params: 
+    @M: dimension of the latent space, i.e. ultimate output dimension of encoder, input dimension of decoder, default=32
+    """
+    # raise Exception("flow model initialization not implemented yet!")
+    from src.models.vae_bernoulli import VAE, GaussianEncoder, BernoulliDecoder, make_enc_dec_networks
+    from src.models.priors import GaussianPrior
+    
+    prior = GaussianPrior(M)
+    encoder_net, decoder_net = make_enc_dec_networks(M)
+    encoder = GaussianEncoder(encoder_net=encoder_net)
+    decoder = BernoulliDecoder(decoder_net=decoder_net)
+
+    return VAE(prior=prior, encoder=encoder, decoder=decoder)
+
 
 if __name__ == "__main__":
     import torch.utils.data
@@ -184,9 +202,11 @@ if __name__ == "__main__":
     if args.model_type == 'flow':
         raise Exception("flow model initialization not implemented yet!")
     elif args.model_type == 'ddpm':
-        model = make_ddpm()
+        model = make_ddpm(continue_train=args.continue_train)
     elif args.model_type == 'vae':
         model = make_vae()
+
+    model = model.to(args.device)
 
     # Choose mode to run
     if args.mode == 'train':

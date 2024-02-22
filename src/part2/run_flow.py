@@ -3,7 +3,8 @@
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from src.part2.flow import MaskedCouplingLayer, Flow, GaussianBase
+import pdb
+from src.models.flow import MaskedCouplingLayer, Flow, GaussianBase
 
 
 def train(model, optimizer, data_loader, epochs, device):
