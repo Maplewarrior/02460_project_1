@@ -11,7 +11,7 @@ from sklearn.decomposition import PCA
 import random
 
 from src.models.vae_bernoulli import VAE, BernoulliDecoder, GaussianEncoder, make_enc_dec_networks
-from src.models.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior
+from src.models.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior, VampPrior
 
 def create_mask(M: int = 784, mask_type: str = 'random'):
     """
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch-size', type=int, default=32, metavar='N', help='batch size for training (default: %(default)s)')
     parser.add_argument('--epochs', type=int, default=10, metavar='N', help='number of epochs to train (default: %(default)s)')
     parser.add_argument('--latent-dim', type=int, default=32, metavar='N', help='dimension of latent variable (default: %(default)s)')
-    parser.add_argument('--prior', type=str, default='standard_normal', choices=['standard_normal', 'MoG', 'flow'], help='Type of prior distribution over latents e.g. p(z)')
+    parser.add_argument('--prior', type=str, default='standard_normal', choices=['standard_normal', 'MoG', 'flow', 'vamp'], help='Type of prior distribution over latents e.g. p(z)')
     parser.add_argument('--mask-type', type=str, default='random', choices=['random', 'chequerboard'], help='Type of mask to use with flow prior (default: %(default)s)')
     parser.add_argument('--k', type=int, default=1, help='The sample size when using IWAE loss (default: %(default)s)')
     args = parser.parse_args()
@@ -237,6 +237,9 @@ if __name__ == '__main__':
         mask = create_mask(M=M, mask_type='random')
         pdb.set_trace()
         prior = FlowPrior(mask=mask, n_transformations=20, latent_dim=256, device=args.device)
+    elif args.prior == 'vamp':
+        prior = VampPrior(num_components=50, latent_dim=M, num_pseudo_inputs=500)
+
 
     # Define VAE model
     encoder_net, decoder_net = make_enc_dec_networks(M)

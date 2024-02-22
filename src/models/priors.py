@@ -109,3 +109,76 @@ class FlowPrior(nn.Module):
     
     def forward(self):
         return self.flow_model
+    
+# Variational mixture of posteriors prior using pseudo-inputs
+class VampPrior(nn.Module):
+    def __init__(self, num_components, latent_dim, num_pseudo_inputs):
+        """
+        Define a VampPrior distribution.
+
+        Parameters:
+        num_components: [int]
+            The number of Gaussian components in the mixture.
+        latent_dim: [int]
+            Dimension of the latent space.
+        num_pseudo_inputs: [int]
+            Number of pseudo inputs to use in the VampPrior.
+        """
+        super(VampPrior, self).__init__()
+        self.num_components = num_components
+        self.latent_dim = latent_dim
+        self.num_pseudo_inputs = num_pseudo_inputs
+
+        # Parameters for mixture weights (pi)
+        self.mixture_weights = nn.Parameter(torch.randn(self.num_components), requires_grad=True)
+
+        # Parameters for component means and standard deviations
+        self.means = nn.Parameter(torch.randn(self.num_components, self.latent_dim), requires_grad=True)
+        self.stds = nn.Parameter(torch.ones(self.num_components, self.latent_dim), requires_grad=True)
+
+        # Parameters for pseudo inputs
+        self.pseudo_inputs = nn.Parameter(torch.randn(self.num_pseudo_inputs, self.latent_dim), requires_grad=True)
+
+    def forward(self):
+        """
+        Return the VampPrior distribution.
+
+        Returns:
+        prior: [torch.distributions.Distribution]
+        """
+        # Use softmax to ensure the mixture weights sum to 1 and are non-negative
+        mixture_weights = torch.nn.functional.softmax(self.mixture_weights, dim=0)
+
+        # Create a categorical distribution for selecting the components
+        categorical = td.Categorical(probs=mixture_weights)
+
+        # Create a distribution for the components using Independent and Normal
+        component_distribution = td.Independent(td.Normal(loc=self.means, scale=torch.exp(self.stds)), 1)
+
+        # Combine the above into a MixtureSameFamily distribution
+        prior = td.MixtureSameFamily(categorical, component_distribution)
+
+        return prior
+
+    def pseudo_input_kernel(self):
+        """
+        Compute the kernel matrix for the pseudo inputs.
+
+        Returns:
+        kernel: [torch.Tensor]
+            The kernel matrix for the pseudo inputs.
+        """
+        kernel = torch.cdist(self.pseudo_inputs, self.pseudo_inputs, p=2)
+        return kernel
+
+    def pseudo_input_loss(self):
+        """
+        Compute the loss term for the pseudo inputs.
+
+        Returns:
+        loss: [torch.Tensor]
+            The loss term for the pseudo inputs.
+        """
+        kernel = self.pseudo_input_kernel()
+        loss = torch.sum(kernel) - torch.trace(kernel)
+        return loss
