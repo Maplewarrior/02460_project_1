@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.distributions as td
+
 class GaussianEncoder(nn.Module):
     def __init__(self, encoder_net):
         """
