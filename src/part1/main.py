@@ -77,7 +77,6 @@ def make_evaluation_results(config, model, data_loader, n_runs):
     with open(f'results/{modelname}_{lossname}_eval.json', 'w') as f:
         json.dump(results, f)
 
-
 def train(model, optimizer, data_loader, epochs, device):
     """
     Train a VAE model.
@@ -97,20 +96,21 @@ def train(model, optimizer, data_loader, epochs, device):
     model.train()
     num_steps = len(data_loader)*epochs
     epoch = 0
-
+    losses = []
     with tqdm(range(num_steps)) as pbar:
         for step in pbar:
             x = next(iter(data_loader))[0]
             x = x.to(device)
             optimizer.zero_grad()
             loss = model(x)
+            losses.append(loss.item())
             loss.backward()
             optimizer.step()
 
             # Report
             if step % 5 ==0 :
                 loss = loss.detach().cpu()
-                pbar.set_description(f"epoch={epoch}, step={step}, loss={loss:.1f}")
+                pbar.set_description(f"epoch={epoch}, step={step}, loss={torch.mean(torch.tensor(losses)):.1f}")
 
             if (step+1) % len(data_loader) == 0:
                 epoch += 1
@@ -201,8 +201,27 @@ def prior_posterior_plot(model, data_loader, device, args):
     # plt.tight_layout(rect=[0, 0, 0.98, 1]) # Rect(left, bottom, right, top)
     # plt.show()
 
+
+def show_run_summary_statistics(filepath: str):
+    with open(filepath, 'r') as f:
+        results = json.load(f)
+    
+    run_keys = [e for e in results.keys() if e.startswith('run')]
+    losses = []
+    for key in run_keys:
+        losses.extend(results[key])
+    mean = torch.mean(torch.tensor(losses)).item()
+    std = torch.std(torch.tensor(losses)).item()
+    print(f'Results for model with')
+    print(f'Mean across {len(run_keys)} runs: {mean}')
+    print(f'Std across {len(run_keys)} runs: {std}')
+    return mean, std
+
+
 if __name__ == '__main__':
     import pdb
+    show_run_summary_statistics('results/IWAE_flow_eval.json')
+    pdb.set_trace()
 
     # Parse arguments
     import argparse
@@ -218,7 +237,7 @@ if __name__ == '__main__':
     parser.add_argument('--mask-type', type=str, default='random', choices=['random', 'chequerboard'], help='Type of mask to use with flow prior (default: %(default)s)')
     parser.add_argument('--k', type=int, default=1, help='The sample size when using IWAE loss (default: %(default)s)')
     args = parser.parse_args()
-    print('# Options')
+    print('\n# Options')
     for key, value in sorted(vars(args).items()):
         print(key, '=', value)
     print("")
@@ -237,6 +256,7 @@ if __name__ == '__main__':
     M = args.latent_dim
     if args.prior == 'Standard_Normal':
         prior = GaussianPrior(M)
+    
     elif args.prior == 'MoG':
         prior = MixtureOfGaussiansPrior(latent_dim=M, num_components=10)
     elif args.prior == 'Flow':
@@ -245,7 +265,6 @@ if __name__ == '__main__':
         prior = FlowPrior(mask=mask, n_transformations=20, latent_dim=256, device=args.device)
     elif args.prior == 'Vamp':
         prior = VampPrior(num_components=50, latent_dim=M, num_pseudo_inputs=500)
-
 
     # Define VAE model
     encoder_net, decoder_net = make_enc_dec_networks(M)
@@ -261,14 +280,19 @@ if __name__ == '__main__':
         # Train model
         train(model, optimizer, mnist_train_loader, args.epochs, args.device)
         make_evaluation_results(vars(args), model, mnist_test_loader, n_runs=10)
+        
+        modelname = args.model.strip('.pt')
+        lossname = 'ELBO' if args.k == 1 else 'IWAE'
+        show_run_summary_statistics(filepath=f'results/{modelname}_{lossname}_eval.json')
         # Save model
         torch.save(model.state_dict(), args.model)
+        
 
     elif args.mode == 'eval':
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
         pdb.set_trace()
         evaluate_runs(model, mnist_test_loader, args.device)
-
+        
     elif args.mode == 'sample':
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
 
@@ -285,5 +309,3 @@ if __name__ == '__main__':
             
             #Plot posterior samples
             prior_posterior_plot(model, mnist_test_loader, device, args)
-
-

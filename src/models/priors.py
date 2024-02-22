@@ -71,10 +71,10 @@ class MixtureOfGaussiansPrior(nn.Module):
         return prior
 
 class FlowPrior(nn.Module):
-    def __init__(self, mask: torch.tensor, n_transformations: int, latent_dim: int, device: str):
+    def __init__(self, masks: torch.tensor, n_transformations: int, latent_dim: int, device: str):
         super(FlowPrior,  self).__init__()
-        self.mask = mask.to(device)
-        self.M = self.mask.size(0)
+        self.masks = masks.to(device)
+        self.M = self.masks.size(1)
         self.latent_dim = latent_dim # latent dimension of scale and translation networks
         self.device = device
         
@@ -84,13 +84,10 @@ class FlowPrior(nn.Module):
         # self.__load_state_dict() # load state dict for trained exercise 2.4 model
     
     def compose_transformations(self, n_transformations: int):
-        """
-        Tanh is not added because the model was not trained with MNIST (see exercises for week 2)
-        """
         transformations = []
         for i in range(n_transformations):
-            mask_inv = (1-self.mask) # Flip the mask
-            scale_net = nn.Sequential(nn.Linear(self.M, self.latent_dim), nn.ReLU(), nn.Linear(self.latent_dim, self.M))
+            mask_inv = (1-self.masks[i]) # Flip the i'th mask
+            scale_net = nn.Sequential(nn.Linear(self.M, self.latent_dim), nn.ReLU(), nn.Linear(self.latent_dim, self.M), nn.Tanh())
             translation_net = nn.Sequential(nn.Linear(self.M, self.latent_dim), nn.ReLU(), nn.Linear(self.latent_dim, self.M))
             transformations.append(MaskedCouplingLayer(scale_net, translation_net, mask_inv))
 

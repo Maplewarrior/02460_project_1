@@ -48,7 +48,7 @@ class MaskedCouplingLayer(nn.Module):
         super(MaskedCouplingLayer, self).__init__()
         self.scale_net = scale_net
         self.translation_net = translation_net
-        self.mask = mask
+        self.mask = nn.Parameter(mask, requires_grad=False)
 
     def forward(self, z):
         """
