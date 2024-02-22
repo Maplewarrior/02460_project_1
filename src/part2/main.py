@@ -45,12 +45,23 @@ def train(model, optimizer, data_loader, epochs, device):
             progress_bar.update()
         mean_loss = total_loss / len(data_loader)
 
-def make_mnist_data(batch_size=100):
-    transform = transforms.Compose([transforms.ToTensor() ,
-        transforms.Lambda(lambda x: x + torch.rand(x.shape)/255),
-        transforms.Lambda(lambda x: (x -0.5) * 2.0),
-        transforms.Lambda(lambda x: x.flatten())]
+def make_mnist_data(batch_size=100, model_type='ddpm', do_transform=False):
+    if not do_transform:
+        transform = transforms.Compose([transforms.ToTensor() ,
+            transforms.Lambda(lambda x: x.flatten())]
         )
+    else:
+        if model_type == 'ddpm':
+            transform = transforms.Compose([transforms.ToTensor() ,
+                transforms.Lambda(lambda x: x + torch.rand(x.shape)/255.0),
+                transforms.Lambda(lambda x: (x -0.5) * 2.0),
+                transforms.Lambda(lambda x: x.flatten())]
+                )
+        else:
+            transform = transforms.Compose([transforms.ToTensor() ,
+                transforms.Lambda(lambda x: x + torch.rand(x.shape)/255.0),
+                transforms.Lambda(lambda x: x.flatten())]
+            )
     train_data = datasets.MNIST('data/',
         train = True,
         download = True,
