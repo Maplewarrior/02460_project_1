@@ -4,6 +4,7 @@ import torch.utils.data
 from torchvision import transforms, datasets
 from torchvision.utils import save_image, make_grid
 from tqdm import tqdm
+import json
 
 from src.models.vae_bernoulli import VAE, BernoulliDecoder, GaussianEncoder, make_enc_dec_networks
 from src.models.priors.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior
@@ -65,13 +66,26 @@ def evaluate_runs(model, data_loader, device, n_runs):
     # make n_runs evaluations
     for i in range(n_runs):
         run_losses = evaluate(model, data_loader, device)
-        losses.extend(run_losses)
+        losses.append(run_losses)
     
     # compute mean and std
     mean_loss = torch.mean(torch.tensor(losses))
     std_loss = torch.std(torch.tensor(losses))
-
     return mean_loss.item(), std_loss.item(), losses
+
+def make_evaluation_results(config, model, data_loader, n_runs):
+    _, _, losses = evaluate_runs(model, data_loader, config['device'], n_runs)
+    # log metadata
+    results = {k: v for k, v in config.items() if k != 'mode'}
+    # log losses for each run
+    for i, run in enumerate(losses):
+        results[f'run_{i+1}'] = run
+    
+    # save results
+        ### TODO: Update filename with loss type (ELBO, IWAE) used for evaluation
+    modelname = config['model'].strip('.pt')
+    with open(f'results/{modelname}_eval.json', 'w') as f:
+        json.dump(results, f)
 
 
 def train(model, optimizer, data_loader, epochs, device):
@@ -174,13 +188,11 @@ if __name__ == '__main__':
 
         # Train model
         train(model, optimizer, mnist_train_loader, args.epochs, args.device)
-
+        make_evaluation_results(vars(args), model, mnist_test_loader, n_runs=10)
         # Save model
         torch.save(model.state_dict(), args.model)
-    
+
     elif args.mode == 'eval':
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
-        # losses = evaluate(model, mnist_test_loader, args.device)
-        mu, std, losses = evaluate_runs(model, mnist_test_loader, args.device, 3)
         pdb.set_trace()
-    
+        evaluate_runs(model, mnist_test_loader, args.device)
