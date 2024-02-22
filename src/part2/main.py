@@ -256,7 +256,7 @@ if __name__ == "__main__":
         with torch.no_grad():
             n_batches = (n_samples + batch_size - 1) // batch_size  # Calculate the number of batches needed
             
-            for i in range(n_batches):
+            for i in tqdm(range(n_batches), desc=f"Generating and Saving Batches of size {batch_size}"):
                 batch_samples = (model.sample((n_samples,))) if args.model_type == 'flow'  else (model.sample((n_samples,D)))
 
                 
