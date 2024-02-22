@@ -23,12 +23,18 @@ def preprocess_images_for_inception(images):
     return images_resized
 
 if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--sample-folder', type=str, help='path to the folder containing the sampled images')
+    parser.add_argument('--device', type=str, default="cpu", help='device to use (default: %(default)s)')
+
+    args = parser.parse_args()
+    device = torch.device(args.device)
+
 
     # Load real and generated images test data loader and the sampled images data loader
     _, real_images_dataloader = make_mnist_data(batch_size=100, do_transform=False) 
-    generated_images_dataloader = make_mnist_data_sampled(batch_size=100, device=device)
+    generated_images_dataloader = make_mnist_data_sampled(data_dir=args.sample_folder,batch_size=100, device=device)
     # _, generated_images_dataloader = make_mnist_data(batch_size=100, do_transform=False)
 
     # Load the pretrained Inception v3 model
@@ -61,4 +67,10 @@ if __name__ == "__main__":
     # Compute FID score
     fid_score = fid_metric.compute()
     print(f"FID Score: {fid_score}")
+
+    # print the FID score to a file results/fid.txt
+    os.makedirs("samples", exist_ok=True)
+    # append the FID score to the file
+    with open("samples/fid.txt", "a") as f:
+        f.write(f"FID Score: {args.sample_folder}: {fid_score}\n")
 

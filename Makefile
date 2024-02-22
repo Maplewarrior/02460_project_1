@@ -72,3 +72,10 @@ batch_sample_ddpm:
 
 batch_sample_flow:
 	python $(PROJECT_NAME)/part2/main.py sample_save_batches --model-type flow --device mps --samples samples/flow/flow_samples.pdf --model models/flow.pt --num-samples 1000 --batch-size 100 --num-transformations 10 --num-hidden 64
+
+
+fid_ddpm_cuda:
+	python $(PROJECT_NAME)/part2/fid.py --sample_folder samples/ddpm  --device cuda
+
+fid_flow_cuda:
+	python $(PROJECT_NAME)/part2/fid.py --sample_folder samples/flow  --device cuda
