@@ -1,4 +1,8 @@
 from tqdm import tqdm
+import torch
+import torch.nn as nn
+from src.part2.flow import MaskedCouplingLayer, Flow, GaussianBase
+
 
 def train(model, optimizer, data_loader, epochs, device):
     """
@@ -64,6 +68,65 @@ def make_mnist_data():
                                                 shuffle=False)
     
     return train_loader, test_loader
+
+def make_flow_model(D, mask_type = "default", device = "cpu", num_transformations = 8, num_hidden = 5):
+    """ Make a flow model. 
+    
+    Args:
+        D: [int]
+            Dimension of the data.
+        mask_type: [str]
+            Specification of a specific mask. Options are 'random' or 'chequerboard'. 
+            The former will randomly permute the mask and the latter will give a chequerboard pattern.
+        device: [str]
+            The device to use for training.
+        num_transformations: [int]
+            Number of transformations to use in the flow model.
+        num_hidden: [int]
+            Number of hidden units in the scaling and translation networks.
+
+    Returns:
+        model: [Flow]
+            The flow model.
+    
+    """
+
+    # Define the prior distribution
+    base = GaussianBase(D)
+
+    # Define transformations
+    transformations =[]
+    mask = torch.Tensor([1 if (i+j) % 2 == 0 else 0 for i in range(28) for j in range(28)])
+
+    # Make a mask that is 1 for the first half of the features and 0 for the second half
+    if mask_type == 'default' or mask_type == 'random':
+        mask = torch.zeros((D,))
+        mask[D//2:] = 1
+    elif mask_type == 'chequerboard':
+        mask = torch.zeros((28, 28))
+        cheq_size = 2
+        # Set 1s in a chequerboard pattern
+        mask[0::cheq_size, 0::cheq_size] = 1
+        mask[1::cheq_size, 1::cheq_size] = 1 
+        mask = mask.flatten()
+
+    mask = mask.to(device)
+    
+    for i in range(num_transformations):
+        scale_net = nn.Sequential(nn.Linear(D, num_hidden), nn.ReLU(), nn.Linear(num_hidden, D), nn.Tanh())
+        translation_net = nn.Sequential(nn.Linear(D, num_hidden), nn.ReLU(), nn.Linear(num_hidden, D),nn.Tanh())
+
+        if mask_type == 'random':
+            permuted_indices = torch.randperm(D)
+            permuted_mask = mask[permuted_indices]
+            transformations.append(MaskedCouplingLayer(scale_net, translation_net, mask=permuted_mask))
+        else:
+            mask = (1-mask) # Flip the mask
+            transformations.append(MaskedCouplingLayer(scale_net, translation_net, mask))
+
+    # Define flow model
+    model = Flow(base, transformations).to(device)
+    return model
 
 """
 params: 
