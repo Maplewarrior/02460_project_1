@@ -34,21 +34,34 @@ clean:
 #################################################################################
 
 train_ddpm_cuda_from_scratch:
-	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py train --model-type ddpm --device cuda --batch-size 128 --epochs 10 --model models/ddpm.pt
+	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py train --model-type ddpm --device cuda \
+		--batch-size 128 --epochs 10 --model models/ddpm.pt
 train_ddpm_cuda_continue:
-	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py train --model-type ddpm --device cuda --batch-size 128 --epochs 10 --model models/ddpm.pt --continue-train true
+	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py train --model-type ddpm --device cuda \
+		--batch-size 128 --epochs 10 --model models/ddpm.pt \
+		--continue-train true
 
 sample_ddpm:
-	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py sample --model-type ddpm --device mps --samples samples/ddpm/ddpm_samples.pdf --model models/ddpm.pt
+	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py sample --model-type ddpm --device mps \
+		--samples samples/ddpm/ddpm_samples.pdf --model models/ddpm.pt
 sample_ddpm_ep180:
-	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py sample --model-type ddpm --device mps --samples samples/ddpm/ddpm_samples.pdf --model models/ddpm_ep180.pt
+	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py sample --model-type ddpm --device mps \
+		--samples samples/ddpm/ddpm_samples.pdf --model models/ddpm_ep180.pt
 	
+TRAIN_FLOW_CMD = python $(PROJECT_NAME)/part2/main.py train --model-type flow \
+		--num-transformations 30 --num-hidden 256 --mask-type cb \
+		--batch-size 32 --epochs 5 --model models/flow.pt
 train_flow:
-	python $(PROJECT_NAME)/part2/main.py train --model-type flow --device mps --batch-size 128 --epochs 10 --model models/flow.pt
+	$(TRAIN_FLOW_CMD)
 train_flow_cuda:
-	python $(PROJECT_NAME)/part2/main.py train --model-type flow --device cuda --batch-size 128 --epochs 10 --model models/flow.pt --mask random
+	$(TRAIN_FLOW_CMD) --device cuda
 
 sample_flow: 
-	python $(PROJECT_NAME)/part2/main.py sample --model-type flow --device mps --samples samples/flow/flow_samples.pdf --model models/flow.pt
+	python $(PROJECT_NAME)/part2/main.py sample --model-type flow \
+		--device mps --samples samples/flow/flow_samples.pdf --mask-type cb \
+		--model models/flow.pt
 sample_flow_cuda: 
-	python $(PROJECT_NAME)/part2/main.py sample --model-type flow --device cuda --samples samples/flow/flow_samples.pdf --model models/flow.pt --mask random
+	python $(PROJECT_NAME)/part2/main.py sample --model-type flow \
+		--device cuda --samples samples/flow/flow_samples.pdf  \
+		--num-transformations 30 --num-hidden 256 --mask-type random \
+		--model models/flow.pt

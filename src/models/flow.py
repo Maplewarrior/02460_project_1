@@ -93,7 +93,7 @@ class MaskedCouplingLayer(nn.Module):
         
         z = x_masked + inv_mask * ((x - t_out) * torch.exp(-s_out))
         # log det |J^(-1)|
-        log_det_J = -torch.sum(inv_mask * s_out, dim=-1) # compute the inverse log jacobian
+        log_det_J = - torch.sum(inv_mask * s_out, dim=-1) # compute the inverse log jacobian
 
         return z, log_det_J
 
@@ -192,3 +192,20 @@ class Flow(nn.Module):
             The negative mean log likelihood for the given data batch.
         """
         return -torch.mean(self.log_prob(x))
+
+def create_mask(M: int = 784, mask_type: str = 'random'):
+    """
+    Function for creating a mask for a flow based prior
+        @param D: The dimensionality of the mask --> needs to match latent dim of VAE.
+        @param mask_type: Options are [chequerboard, random]
+    """
+    mask = torch.zeros((M))
+    mask[M//2:] = 1
+    
+    if mask_type == 'random': # create a random mask with 50% ones and rest 0
+        mask = mask[torch.randperm(len(mask))]
+    
+    elif mask_type == 'chequerboard':
+        mask = torch.Tensor([1 if (i+j) % 2 == 0 else 0 for i in range(M//2) for j in range(M//2)])
+
+    return mask

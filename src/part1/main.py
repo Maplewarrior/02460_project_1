@@ -7,22 +7,7 @@ from tqdm import tqdm
 
 from src.models.vae_bernoulli import VAE, BernoulliDecoder, GaussianEncoder, make_enc_dec_networks
 from src.models.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior
-
-def create_mask(M: int = 784, mask_type: str = 'random'):
-    """
-    Function for creating a mask for a flow based prior
-        @param D: The dimensionality of the mask --> needs to match latent dim of VAE.
-        @param mask_type: Options are [chequerboard, random]
-    """
-    if mask_type == 'random': # create a random mask with 50% ones and rest 0
-        mask = torch.zeros((M))
-        mask[M//2:] = 1
-        mask = mask[torch.randperm(len(mask))]
-    
-    elif mask_type == 'chequerboard':
-        mask = torch.Tensor([1 if (i+j) % 2 == 0 else 0 for i in range(M//2) for j in range(M//2)])
-
-    return mask
+from src.models.flow import create_mask
 
 
 def evaluate(model, data_loader, device):
