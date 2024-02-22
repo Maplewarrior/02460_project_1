@@ -15,7 +15,7 @@ PYTHON_INTERPRETER = python
 
 ## Set up python interpreter environment
 create_venv:
-	PYTHON_INTERPRETER -m venv venv
+	$(PYTHON_INTERPRETER) -m venv venv
 
 ## Install Python Dependencies
 requirements:
