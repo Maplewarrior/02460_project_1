@@ -73,7 +73,7 @@ class MixtureOfGaussiansPrior(nn.Module):
 class FlowPrior(nn.Module):
     def __init__(self, mask: torch.tensor, n_transformations: int, latent_dim: int, device: str):
         super(FlowPrior,  self).__init__()
-        self.mask = mask
+        self.mask = mask.to(device)
         self.M = self.mask.size(0)
         self.latent_dim = latent_dim # latent dimension of scale and translation networks
         self.device = device

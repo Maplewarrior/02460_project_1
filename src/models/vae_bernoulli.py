@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.distributions as td
+import pdb
 
 def make_enc_dec_networks(M: int):
     # Define encoder and decoder networks
@@ -78,7 +79,7 @@ class VAE(nn.Module):
     """
     Define a Variational Autoencoder (VAE) model.
     """
-    def __init__(self, prior, decoder, encoder):
+    def __init__(self, prior, decoder, encoder, k=1):
         """
         Parameters:
         prior: [torch.nn.Module] 
@@ -87,12 +88,30 @@ class VAE(nn.Module):
               The decoder distribution over the data space. p(x|z)
         encoder: [torch.nn.Module]
                 The encoder distribution over the latent space. --> p(z|x)
+        k: [int]
+            The number of samples to use for IWAE. If set to 1, this is equivalent to using the ELBO loss.
+            Note: Reparamterization trick is used and therefore estimates will vary for the same x.
         """
             
         super(VAE, self).__init__()
         self.prior = prior
         self.decoder = decoder
         self.encoder = encoder
+        self.k = k
+        print(f'VAE with k={self.k}')
+        
+    def IWAE(self, x):
+        """
+        Compute the IWAE for the given batch of data.
+
+        Parameters:
+        x: [torch.Tensor] 
+           A tensor of dimension `(batch_size, feature_dim1, feature_dim2, ...)`
+           n_samples: [int]
+           Number of samples to use for the Monte Carlo estimate of the ELBO.
+        """
+        x = x.repeat(self.k, 1, 1)
+        return self.elbo(x)
 
     def elbo(self, x):
         """
@@ -105,8 +124,7 @@ class VAE(nn.Module):
            Number of samples to use for the Monte Carlo estimate of the ELBO.
         """
         q = self.encoder(x)
-        z = q.rsample() # MHA: Reparameterization trick!
-        # pdb.set_trace()
+        z = q.rsample() # reparameterization
         RE = self.decoder(z).log_prob(x)
         KL = q.log_prob(z) - self.prior().log_prob(z)
         elbo = (RE - KL).mean()
@@ -135,4 +153,4 @@ class VAE(nn.Module):
         x: [torch.Tensor] 
            A tensor of dimension `(batch_size, feature_dim1, feature_dim2)`
         """
-        return -self.elbo(x)
+        return -self.elbo(x) if self.k == 1 else -self.IWAE(x)

@@ -88,7 +88,8 @@ def make_evaluation_results(config, model, data_loader, n_runs):
     # save results
         ### TODO: Update filename with loss type (ELBO, IWAE) used for evaluation
     modelname = config['model'].strip('.pt')
-    with open(f'results/{modelname}_eval.json', 'w') as f:
+    lossname = "ELBO" if config['k'] == 1 else "IWAE"
+    with open(f'results/{modelname}_{lossname}_eval.json', 'w') as f:
         json.dump(results, f)
 
 
@@ -209,7 +210,7 @@ if __name__ == '__main__':
     parser.add_argument('--latent-dim', type=int, default=32, metavar='N', help='dimension of latent variable (default: %(default)s)')
     parser.add_argument('--prior', type=str, default='standard_normal', choices=['standard_normal', 'MoG', 'flow'], help='Type of prior distribution over latents e.g. p(z)')
     parser.add_argument('--mask-type', type=str, default='random', choices=['random', 'chequerboard'], help='Type of mask to use with flow prior (default: %(default)s)')
-    
+    parser.add_argument('--k', type=int, default=1, help='The sample size when using IWAE loss (default: %(default)s)')
     args = parser.parse_args()
     print('# Options')
     for key, value in sorted(vars(args).items()):
@@ -241,7 +242,7 @@ if __name__ == '__main__':
     encoder_net, decoder_net = make_enc_dec_networks(M)
     decoder = BernoulliDecoder(decoder_net)
     encoder = GaussianEncoder(encoder_net)
-    model = VAE(prior, decoder, encoder).to(device)
+    model = VAE(prior, decoder, encoder, args.k).to(device)
 
     # Choose mode to run
     if args.mode == 'train':
