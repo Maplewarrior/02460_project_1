@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from src.models.flow import MaskedCouplingLayer, Flow, GaussianBase, create_mask
 from torchvision import datasets, transforms
-
+import os
 
 def train(model, optimizer, data_loader, epochs, device):
     """
@@ -188,7 +188,7 @@ if __name__ == "__main__":
     # Parse arguments
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', type=str, default='train', choices=['train', 'sample', 'test'], help='what to do when running the script (default: %(default)s)')
+    parser.add_argument('mode', type=str, default='train', choices=['train', 'sample', 'test', 'sample_save_batches'], help='what to do when running the script (default: %(default)s)')
     
     parser.add_argument('--model-type', type=str, choices=['flow', 'ddpm', 'vae'], help='torch device (default: %(default)s)')
     
@@ -203,13 +203,14 @@ if __name__ == "__main__":
     parser.add_argument('--num-transformations', type=int, default=8, metavar='N', help='number of transformations in flow model (default: %(default)s)')
     parser.add_argument('--num-hidden', type=int, default=5, metavar='N', help='number of hidden units in scaling and translation networks (default: %(default)s)')
 
+    parser.add_argument('--num-samples', type=int, default=10000, help='whether to sample from model (default: %(default)s)')
 
     args = parser.parse_args()
     print('# Options')
     for key, value in sorted(vars(args).items()):
         print(key, '=', value)
 
-    train_loader, test_loader = make_mnist_data(args.batch_size)
+    train_loader, test_loader = make_mnist_data(args.batch_size, model_type=args.model_type, do_transform=True)
     
     # Get the dimension of the dataset
     D = next(iter(train_loader))[0].shape[1]
@@ -252,3 +253,37 @@ if __name__ == "__main__":
                 save_path =  f"{(args.samples).split('.pdf')[0]}_{i}.pdf" # make save_path in format {save_loc}/{filename}_{1,2,...,n_samples}.{ext}
                 save_image(samples[i].view(1, 1, 28, 28), save_path, format='pdf')
     
+    elif args.mode == 'sample_save_batches':
+        # Load the model
+        model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
+        model.eval()
+
+        batch_size = args.batch_size
+        n_samples = args.num_samples
+
+        # get folders from args.sample 
+        save_dir = os.path.dirname(args.samples)
+        # add folder for samples
+        save_dir = os.path.join(save_dir, 'batch_samples')
+        # create folder
+        os.makedirs(save_dir, exist_ok=True)
+
+        with torch.no_grad():
+            n_batches = (n_samples + batch_size - 1) // batch_size  # Calculate the number of batches needed
+
+            for i in range(n_batches):
+                batch_samples = (model.sample((n_samples,))) if args.model_type == 'flow'  else (model.sample((n_samples,D)))
+
+                # transform the samples back to the original space
+                if args.model_type == 'ddpm':
+                    batch_samples = batch_samples / 2 + 0.5
+
+                batch_samples = batch_samples / torch.max(torch.abs(batch_samples))
+
+                print("max:", torch.max(batch_samples))
+                print("min:", torch.min(batch_samples))
+
+
+                # Save the entire batch as a single tensor file
+                save_path = os.path.join(save_dir, f'batch_{i}.pt')
+                torch.save(batch_samples, save_path)
