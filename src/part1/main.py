@@ -5,22 +5,22 @@ from torchvision import transforms, datasets
 from torchvision.utils import save_image, make_grid
 from tqdm import tqdm
 
-from vae_bernoulli import VAE, BernoulliDecoder, GaussianEncoder
-from priors.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior
+from src.models.vae_bernoulli import VAE, BernoulliDecoder, GaussianEncoder, make_enc_dec_networks
+from src.priors.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior
 
-def create_mask(D: int = 784, mask_type: str = 'random'):
+def create_mask(M: int = 784, mask_type: str = 'random'):
     """
     Function for creating a mask for a flow based prior
         @param D: The dimensionality of the mask --> needs to match latent dim of VAE.
         @param mask_type: Options are [chequerboard, random]
     """
     if mask_type == 'random': # create a random mask with 50% ones and rest 0
-        mask = torch.zeros((D))
-        mask[D//2:] = 1
+        mask = torch.zeros((M))
+        mask[M//2:] = 1
         mask = mask[torch.randperm(len(mask))]
     
     elif mask_type == 'chequerboard':
-        mask = torch.Tensor([1 if (i+j) % 2 == 0 else 0 for i in range(D//2) for j in range(D//2)])
+        mask = torch.Tensor([1 if (i+j) % 2 == 0 else 0 for i in range(M//2) for j in range(M//2)])
 
     return mask
 
@@ -59,6 +59,19 @@ def evaluate(model, data_loader, device):
      
     print(f'Mean loss of model on MNIST test: {torch.mean(torch.tensor(losses)):.4f}')
     return losses
+
+def evaluate_runs(model, data_loader, device, n_runs):
+    losses = []
+    # make n_runs evaluations
+    for i in range(n_runs):
+        run_losses = evaluate(model, data_loader, device)
+        losses.extend(run_losses)
+    
+    # compute mean and std
+    mean_loss = torch.mean(torch.tensor(losses))
+    std_loss = torch.std(torch.tensor(losses))
+
+    return mean_loss.item(), std_loss.item()
 
 def train(model, optimizer, data_loader, epochs, device):
     """
@@ -118,11 +131,13 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=10, metavar='N', help='number of epochs to train (default: %(default)s)')
     parser.add_argument('--latent-dim', type=int, default=32, metavar='N', help='dimension of latent variable (default: %(default)s)')
     parser.add_argument('--prior', type=str, default='standard_normal', choices=['standard_normal', 'MoG', 'flow'], help='Type of prior distribution over latents e.g. p(z)')
-
+    parser.add_argument('--mask-type', type=str, default='random', choices=['random', 'chequerboard'], help='Type of mask to use with flow prior (default: %(default)s)')
+    
     args = parser.parse_args()
     print('# Options')
     for key, value in sorted(vars(args).items()):
         print(key, '=', value)
+    print("")
 
     device = args.device
 
@@ -134,36 +149,19 @@ if __name__ == '__main__':
     mnist_test_loader = torch.utils.data.DataLoader(datasets.MNIST('data/', train=False, download=True,
                                                                 transform=transforms.Compose([transforms.ToTensor(), transforms.Lambda(lambda x: (thresshold < x).float().squeeze())])),
                                                     batch_size=args.batch_size, shuffle=True)
-
     # Define prior distribution
     M = args.latent_dim
     if args.prior == 'standard_normal':
         prior = GaussianPrior(M)
     elif args.prior == 'MoG':
-        prior = MixtureOfGaussiansPrior(M, K=10)
+        prior = MixtureOfGaussiansPrior(latent_dim=M, num_components=10)
     elif args.prior == 'flow':
-        prior = FlowPrior(M=M, n_transformations=5, latent_dim=args.latent_dim, device=args.device)
-
-    # Define encoder and decoder networks
-    encoder_net = nn.Sequential(
-        nn.Flatten(),
-        nn.Linear(784, 512),
-        nn.ReLU(),
-        nn.Linear(512, 512),
-        nn.ReLU(),
-        nn.Linear(512, M*2),
-    )
-
-    decoder_net = nn.Sequential(
-        nn.Linear(M, 512),
-        nn.ReLU(),
-        nn.Linear(512, 512),
-        nn.ReLU(),
-        nn.Linear(512, 784),
-        nn.Unflatten(-1, (28, 28))
-    )
+        mask = create_mask(M=M, mask_type='random')
+        pdb.set_trace()
+        prior = FlowPrior(mask=mask, n_transformations=5, latent_dim=256, device=args.device)
 
     # Define VAE model
+    encoder_net, decoder_net = make_enc_dec_networks(M)
     decoder = BernoulliDecoder(decoder_net)
     encoder = GaussianEncoder(encoder_net)
     model = VAE(prior, decoder, encoder).to(device)
@@ -178,3 +176,10 @@ if __name__ == '__main__':
 
         # Save model
         torch.save(model.state_dict(), args.model)
+    
+    elif args.mode == 'eval':
+        model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
+        # losses = evaluate(model, mnist_test_loader, args.device)
+        mu, std = evaluate_runs(model, mnist_test_loader, args.device, 3)
+        pdb.set_trace()
+    

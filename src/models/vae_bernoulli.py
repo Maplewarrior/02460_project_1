@@ -2,6 +2,27 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 
+def make_enc_dec_networks(M: int):
+    # Define encoder and decoder networks
+    encoder_net = nn.Sequential(
+        nn.Flatten(),
+        nn.Linear(784, 512),
+        nn.ReLU(),
+        nn.Linear(512, 512),
+        nn.ReLU(),
+        nn.Linear(512, M*2),
+    )
+
+    decoder_net = nn.Sequential(
+        nn.Linear(M, 512),
+        nn.ReLU(),
+        nn.Linear(512, 512),
+        nn.ReLU(),
+        nn.Linear(512, 784),
+        nn.Unflatten(-1, (28, 28))
+    )
+    return encoder_net, decoder_net
+
 class GaussianEncoder(nn.Module):
     def __init__(self, encoder_net):
         """
