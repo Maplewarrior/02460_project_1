@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 import torch.utils.data
-from src.part2.flow import MaskedCouplingLayer, Flow
+from src.models.flow import MaskedCouplingLayer, Flow
 
 class GaussianPrior(nn.Module):
     def __init__(self, M):

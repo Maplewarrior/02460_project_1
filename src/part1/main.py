@@ -6,7 +6,7 @@ from torchvision.utils import save_image, make_grid
 from tqdm import tqdm
 
 from src.models.vae_bernoulli import VAE, BernoulliDecoder, GaussianEncoder, make_enc_dec_networks
-from src.priors.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior
+from src.models.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior
 
 def create_mask(M: int = 784, mask_type: str = 'random'):
     """

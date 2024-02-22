@@ -65,11 +65,11 @@ def make_mnist_data():
     
     return train_loader, test_loader
 
-"""
-params: 
-@T: number of steps in the diffusion process, default=1_000
-"""
 def make_ddpm(T = 1_000, continue_train=False):
+    """
+    params: 
+    @T: number of steps in the diffusion process, default=1_000
+    """
     from src.models.unet import Unet
     from src.models.ddpm import DDPM
 
@@ -83,16 +83,14 @@ def make_ddpm(T = 1_000, continue_train=False):
 
     return model
 
-"""
-params: 
-@M: dimension of the latent space, i.e. ultimate output dimension of encoder, input dimension of decoder, default=32
-"""
 def make_vae(M = 32):
+    """
+    params: 
+    @M: dimension of the latent space, i.e. ultimate output dimension of encoder, input dimension of decoder, default=32
+    """
     # raise Exception("flow model initialization not implemented yet!")
     from src.models.vae_bernoulli import VAE, GaussianEncoder, BernoulliDecoder, make_enc_dec_networks
-    from src.priors.priors import GaussianPrior 
-    # TODO refactor to: 
-    # from src.models.priors import GaussianPrior
+    from src.models.priors import GaussianPrior
     
     prior = GaussianPrior(M)
     encoder_net, decoder_net = make_enc_dec_networks(M)

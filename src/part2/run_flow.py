@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.distributions as td
 from tqdm import tqdm
 import pdb
-from src.part2.flow import MaskedCouplingLayer, Flow, GaussianBase
+from src.models.flow import MaskedCouplingLayer, Flow, GaussianBase
 
 
 def train(model, optimizer, data_loader, epochs, device):
