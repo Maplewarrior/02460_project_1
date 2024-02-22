@@ -7,3 +7,4 @@ scikit-learn==1.4.0
 scipy==1.12.0
 dvc==3.42.0
 dvc-gdrive==3.0.1
+torcheval==0.0.7
