@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 import torch.utils.data
-from part2.flow import MaskedCouplingLayer, Flow
+from src.part2.flow import MaskedCouplingLayer, Flow
 
 class GaussianPrior(nn.Module):
     def __init__(self, M):
@@ -71,12 +71,13 @@ class MixtureOfGaussiansPrior(nn.Module):
         return prior
 
 class FlowPrior(nn.Module):
-    def __init__(self, M, n_transformations: int, latent_dim: int, device: str):
+    def __init__(self, mask: torch.tensor, n_transformations: int, latent_dim: int, device: str):
         super(FlowPrior,  self).__init__()
-        self.M = M
-        self.latent_dim = latent_dim
-        self.mask = self.build_mask()
+        self.mask = mask
+        self.M = self.mask.size(0)
+        self.latent_dim = latent_dim # latent dimension of scale and translation networks
         self.device = device
+        
         base = GaussianPrior(self.M)
         transformations = self.compose_transformations(n_transformations)
         self.flow_model = Flow(base, transformations)
@@ -94,15 +95,6 @@ class FlowPrior(nn.Module):
             transformations.append(MaskedCouplingLayer(scale_net, translation_net, mask_inv))
 
         return transformations
-
-    def build_mask(self):
-        """
-        Default mask from week 2
-        """
-        mask = torch.Tensor([1 if (i+j) % 2 == 0 else 0 for i in range(28) for j in range(28)])
-        mask = torch.zeros((self.M,))
-        mask[self.M//2:] = 1
-        return mask
     
     def sample(self, n_samples):
         # n_samples = torch.Size([num_samples])
