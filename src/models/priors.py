@@ -129,10 +129,10 @@ class VampPrior(nn.Module):
         self.latent_dim = latent_dim
         self.num_pseudo_inputs = num_pseudo_inputs
 
-        # Parameters for mixture weights (pi)
+        # Parameters for mixture weights (pi) - learnable
         self.mixture_weights = nn.Parameter(torch.randn(self.num_components), requires_grad=True)
 
-        # Parameters for component means and standard deviations
+        # Parameters for component means and standard deviations - also learnable
         self.means = nn.Parameter(torch.randn(self.num_components, self.latent_dim), requires_grad=True)
         self.stds = nn.Parameter(torch.ones(self.num_components, self.latent_dim), requires_grad=True)
 
