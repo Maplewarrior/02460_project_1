@@ -2,12 +2,7 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 import torch.utils.data
-from torch.nn import functional as F
-from tqdm import tqdm
-import pdb
-import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
-import numpy as np
+from part2.flow import MaskedCouplingLayer, Flow
 
 class GaussianPrior(nn.Module):
     def __init__(self, M):
@@ -74,3 +69,51 @@ class MixtureOfGaussiansPrior(nn.Module):
         prior = td.MixtureSameFamily(categorical, component_distribution)
 
         return prior
+    
+class FlowPrior(nn.Module):
+    def __init__(self, M, n_transformations: int, latent_dim: int, device: str):
+        super(FlowPrior,  self).__init__()
+        self.M = M
+        self.latent_dim = latent_dim
+        self.mask = self.build_mask()
+        self.device = device
+        base = GaussianPrior(self.M)
+        transformations = self.compose_transformations(n_transformations)
+        self.flow_model = Flow(base, transformations)
+        # self.__load_state_dict() # load state dict for trained exercise 2.4 model
+    
+    def compose_transformations(self, n_transformations: int):
+        """
+        Tanh is not added because the model was not trained with MNIST (see exercises for week 2)
+        """
+        transformations = []
+        for i in range(n_transformations):
+            mask_inv = (1-self.mask) # Flip the mask
+            scale_net = nn.Sequential(nn.Linear(self.M, self.latent_dim), nn.ReLU(), nn.Linear(self.latent_dim, self.M))
+            translation_net = nn.Sequential(nn.Linear(self.M, self.latent_dim), nn.ReLU(), nn.Linear(self.latent_dim, self.M))
+            transformations.append(MaskedCouplingLayer(scale_net, translation_net, mask_inv))
+
+        return transformations
+
+    def build_mask(self):
+        """
+        Default mask from week 2
+        """
+        mask = torch.Tensor([1 if (i+j) % 2 == 0 else 0 for i in range(28) for j in range(28)])
+        mask = torch.zeros((self.M,))
+        mask[self.M//2:] = 1
+        return mask
+    
+    def sample(self, n_samples):
+        # n_samples = torch.Size([num_samples])
+        #with torch.no_grad():
+        samples = self.flow_model.sample(n_samples)
+        return samples
+    
+    def log_prob(self, ipt):
+        # with torch.no_grad():
+        log_prob = self.flow_model.log_prob(ipt)
+        return log_prob
+    
+    def forward(self):
+        return self.flow_model
