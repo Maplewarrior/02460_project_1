@@ -272,9 +272,8 @@ if __name__ == "__main__":
         with torch.no_grad():
             n_batches = (n_samples + batch_size - 1) // batch_size  # Calculate the number of batches needed
 
-            for i in range(n_batches):
+            for i in tqdm(range(n_batches), desc="Sampling batches"):
                 batch_samples = (model.sample((n_samples,))) if args.model_type == 'flow'  else (model.sample((n_samples,D)))
-
 
                 # transform the samples back to the original space
                 # if args.model_type == 'ddpm':
@@ -295,8 +294,6 @@ if __name__ == "__main__":
                 # Normalize the data
                     batch_samples = (batch_samples - min_val) / range_val
 
-                print("max:", torch.max(batch_samples))
-                print("min:", torch.min(batch_samples))
 
                 # Save the entire batch as a single tensor file
                 save_path = os.path.join(save_dir, f'batch_{i}.pt')
