@@ -34,11 +34,11 @@ clean:
 #################################################################################
 
 train_ddpm_cuda_from_scratch:
-	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py train --device cuda --batch-size 128 --epochs 10 --model models/ddpm.pt
+	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py train --model-type ddpm --device cuda --batch-size 128 --epochs 10 --model models/ddpm.pt
 train_ddpm_cuda_continue:
-	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py train --device cuda --batch-size 128 --epochs 10 --model models/ddpm.pt --continue-train true
+	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py train --model-type ddpm --device cuda --batch-size 128 --epochs 10 --model models/ddpm.pt --continue-train true
 
 sample_ddpm:
-	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py sample --device mps --samples samples/ddpm_samples.png --model models/ddpm.pt
+	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py sample --model-type ddpm --device mps --samples samples/ddpm_samples.png --model models/ddpm.pt
 sample_ddpm_ep180:
-	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py sample --device mps --samples samples/ddpm_samples.png --model models/ddpm_ep180.pt
+	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py sample --model-type ddpm --device mps --samples samples/ddpm_samples.png --model models/ddpm_ep180.pt
