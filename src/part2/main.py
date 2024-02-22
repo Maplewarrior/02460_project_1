@@ -70,6 +70,9 @@ params:
 @T: number of steps in the diffusion process, default=1_000
 """
 def make_ddpm(T = 1_000):
+    from src.models.unet import Unet
+    from src.models.ddpm import DDPM
+
     # Define the (mu,sigma2)-estimator network
     network = Unet()
 
@@ -80,19 +83,21 @@ def make_ddpm(T = 1_000):
 
     return model
 
+def make_vae():
+    # from src.models
+    raise Exception("flow model initialization not implemented yet!")
+
 if __name__ == "__main__":
     import torch.utils.data
     from torchvision import datasets, transforms
     from torchvision.utils import save_image
-    from src.models.unet import Unet
-    from src.part2.ddpm import DDPM
 
     # Parse arguments
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', type=str, default='train', choices=['train', 'sample', 'test'], help='what to do when running the script (default: %(default)s)')
     
-    parser.add_argument('--model-type', type=str, choices=['flow', 'ddpm'], help='torch device (default: %(default)s)')
+    parser.add_argument('--model-type', type=str, choices=['flow', 'ddpm', 'vae'], help='torch device (default: %(default)s)')
     
     parser.add_argument('--continue-train', type=bool, default=False, help='whether to continue training from ckpt (same path as "model") (default: %(default)s)')
     parser.add_argument('--model', type=str, default='model.pt', help='file to save model to or load model from (default: %(default)s)')
@@ -117,6 +122,8 @@ if __name__ == "__main__":
         raise Exception("flow model initialization not implemented yet!")
     elif args.model_type == 'ddpm':
         model = make_ddpm()
+    elif args.model_type == 'vae':
+        model = make_vae()
 
     # Choose mode to run
     if args.mode == 'train':
