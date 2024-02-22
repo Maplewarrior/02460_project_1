@@ -7,7 +7,7 @@ from tqdm import tqdm
 import json
 
 from src.models.vae_bernoulli import VAE, BernoulliDecoder, GaussianEncoder, make_enc_dec_networks
-from src.models.priors.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior
+from src.models.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior
 
 def create_mask(M: int = 784, mask_type: str = 'random'):
     """

@@ -30,7 +30,7 @@ class MaskedCouplingLayer(nn.Module):
     An affine coupling layer for a normalizing flow.
     """
 
-    def __init__(self, scale_net, translation_net, mask, mask_type=None):
+    def __init__(self, scale_net, translation_net, mask):
         """
         Define a coupling layer.
 
@@ -48,12 +48,8 @@ class MaskedCouplingLayer(nn.Module):
         super(MaskedCouplingLayer, self).__init__()
         self.scale_net = scale_net
         self.translation_net = translation_net
-        if mask_type is None:
-            self.mask = nn.Parameter(mask, requires_grad=False)
-        elif mask_type == 'random':
-            self.mask = nn.Parameter(mask[torch.randperm(len(mask))], requires_grad=False) # randomly permute the mask when initializing
-        else:
-            raise NotImplementedError()
+        self.mask = mask
+
     def forward(self, z):
         """
         Transform a batch of data through the coupling layer (from the base to data).
