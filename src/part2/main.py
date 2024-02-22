@@ -40,33 +40,7 @@ def train(model, optimizer, data_loader, epochs, device):
             progress_bar.update()
         mean_loss = total_loss / len(data_loader)
 
-
-
-if __name__ == "__main__":
-    import torch.utils.data
-    from torchvision import datasets, transforms
-    from torchvision.utils import save_image
-    from src.models.unet import Unet
-    from src.part2.ddpm import DDPM
-
-    # Parse arguments
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('mode', type=str, default='train', choices=['train', 'sample', 'test'], help='what to do when running the script (default: %(default)s)')
-    parser.add_argument('--continue-train', type=bool, default=False, help='whether to continue training from ckpt (same path as "model") (default: %(default)s)')
-    parser.add_argument('--model', type=str, default='model.pt', help='file to save model to or load model from (default: %(default)s)')
-    parser.add_argument('--samples', type=str, default='samples.png', help='file to save samples in (default: %(default)s)')
-    parser.add_argument('--device', type=str, default='cpu', choices=['cpu', 'cuda', 'mps'], help='torch device (default: %(default)s)')
-    parser.add_argument('--batch-size', type=int, default=10000, metavar='N', help='batch size for training (default: %(default)s)')
-    parser.add_argument('--epochs', type=int, default=1, metavar='N', help='number of epochs to train (default: %(default)s)')
-    parser.add_argument('--lr', type=float, default=1e-3, metavar='V', help='learning rate for training (default: %(default)s)')
-
-
-    args = parser.parse_args()
-    print('# Options')
-    for key, value in sorted(vars(args).items()):
-        print(key, '=', value)
-
+def make_mnist_data():
     transform = transforms.Compose([transforms.ToTensor() ,
         transforms.Lambda(lambda x: x + torch.rand(x.shape)/255),
         transforms.Lambda(lambda x: (x -0.5) * 2.0),
@@ -85,22 +59,71 @@ if __name__ == "__main__":
     train_loader = torch.utils.data.DataLoader(train_data, 
                                                 batch_size=args.batch_size, 
                                                 shuffle=True)
-    test_loader = torch.utils.data.DataLoader(train_data, 
+    test_loader = torch.utils.data.DataLoader(test_data, 
                                                 batch_size=args.batch_size, 
                                                 shuffle=False)
-    # Get the dimension of the dataset
-    D = next(iter(train_loader))[0].shape[1]
+    
+    return train_loader, test_loader
 
-    # Define the network
+"""
+params: 
+@T: number of steps in the diffusion process, default=1_000
+"""
+def make_ddpm(T = 1_000):
+    from src.models.unet import Unet
+    from src.models.ddpm import DDPM
+
+    # Define the (mu,sigma2)-estimator network
     network = Unet()
-
-    # Set the number of steps in the diffusion process
-    T = 1000
 
     # Define model
     model = DDPM(network, T=T).to(args.device)
     if args.continue_train == True:
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
+
+    return model
+
+def make_vae():
+    # from src.models
+    raise Exception("flow model initialization not implemented yet!")
+
+if __name__ == "__main__":
+    import torch.utils.data
+    from torchvision import datasets, transforms
+    from torchvision.utils import save_image
+
+    # Parse arguments
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('mode', type=str, default='train', choices=['train', 'sample', 'test'], help='what to do when running the script (default: %(default)s)')
+    
+    parser.add_argument('--model-type', type=str, choices=['flow', 'ddpm', 'vae'], help='torch device (default: %(default)s)')
+    
+    parser.add_argument('--continue-train', type=bool, default=False, help='whether to continue training from ckpt (same path as "model") (default: %(default)s)')
+    parser.add_argument('--model', type=str, default='model.pt', help='file to save model to or load model from (default: %(default)s)')
+    parser.add_argument('--samples', type=str, default='samples.png', help='file to save samples in (default: %(default)s)')
+    parser.add_argument('--device', type=str, default='cpu', choices=['cpu', 'cuda', 'mps'], help='torch device (default: %(default)s)')
+    parser.add_argument('--batch-size', type=int, default=10000, metavar='N', help='batch size for training (default: %(default)s)')
+    parser.add_argument('--epochs', type=int, default=1, metavar='N', help='number of epochs to train (default: %(default)s)')
+    parser.add_argument('--lr', type=float, default=1e-3, metavar='V', help='learning rate for training (default: %(default)s)')
+
+
+    args = parser.parse_args()
+    print('# Options')
+    for key, value in sorted(vars(args).items()):
+        print(key, '=', value)
+
+    train_loader, test_loader = make_mnist_data()
+    
+    # Get the dimension of the dataset
+    D = next(iter(train_loader))[0].shape[1]
+
+    if args.model_type == 'flow':
+        raise Exception("flow model initialization not implemented yet!")
+    elif args.model_type == 'ddpm':
+        model = make_ddpm()
+    elif args.model_type == 'vae':
+        model = make_vae()
 
     # Choose mode to run
     if args.mode == 'train':
@@ -118,11 +141,11 @@ if __name__ == "__main__":
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device))) # ret vigtig :)
         model.eval()
         with torch.no_grad():
-            n_samples = 32
+            n_samples = 4
             samples = (model.sample((n_samples,D))).cpu()
-            
             # Transform the samples back to the original space
             samples = samples / 2 + 0.5
-            
-            save_image(samples.view(n_samples, 1, 28, 28), args.samples)
+            for i in range(n_samples):
+                save_path =  f"{(args.samples).split('.pdf')[0]}_{i}.pdf" # make save_path in format {save_loc}/{filename}_{1,2,...,n_samples}.{ext}
+                save_image(samples[i].view(1, 1, 28, 28), save_path, format='pdf')
     
