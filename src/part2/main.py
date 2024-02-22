@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import torch
 import torch.nn as nn
-from src.part2.flow import MaskedCouplingLayer, Flow, GaussianBase
+from src.models.flow import MaskedCouplingLayer, Flow, GaussianBase
 
 
 def train(model, optimizer, data_loader, epochs, device):
@@ -132,7 +132,6 @@ def make_flow_model(D, mask_type = "default", device = "cpu", num_transformation
 params: 
 @T: number of steps in the diffusion process, default=1_000
 """
-def make_ddpm(T = 1_000):
 def make_ddpm(T = 1_000, continue_train=False):
     """
     params: 
@@ -187,6 +186,9 @@ if __name__ == "__main__":
     parser.add_argument('--batch-size', type=int, default=10000, metavar='N', help='batch size for training (default: %(default)s)')
     parser.add_argument('--epochs', type=int, default=1, metavar='N', help='number of epochs to train (default: %(default)s)')
     parser.add_argument('--lr', type=float, default=1e-3, metavar='V', help='learning rate for training (default: %(default)s)')
+    parser.add_argument('--mask-type', type=str, default='default', choices=['default', 'random', 'chequerboard'], help='mask type for flow model (default: %(default)s)')
+    parser.add_argument('--num-transformations', type=int, default=8, metavar='N', help='number of transformations in flow model (default: %(default)s)')
+    parser.add_argument('--num-hidden', type=int, default=5, metavar='N', help='number of hidden units in scaling and translation networks (default: %(default)s)')
 
 
     args = parser.parse_args()
@@ -200,7 +202,7 @@ if __name__ == "__main__":
     D = next(iter(train_loader))[0].shape[1]
 
     if args.model_type == 'flow':
-        raise Exception("flow model initialization not implemented yet!")
+        model = make_flow_model(D, device=args.device, mask_type=args.mask_type, num_transformations=args.num_transformations, num_hidden=args.num_hidden)
     elif args.model_type == 'ddpm':
         model = make_ddpm(continue_train=args.continue_train)
     elif args.model_type == 'vae':
