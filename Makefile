@@ -32,3 +32,13 @@ clean:
 #################################################################################
 # PROJECT RULES                                                                 #
 #################################################################################
+
+train_ddpm_cuda_from_scratch:
+	python ddpm.py train --device cuda --batch-size 128 --epochs 10 --model models/ddpm.pt
+train_ddpm_cuda_continue:
+	python ddpm.py train --device cuda --batch-size 128 --epochs 10 --model models/ddpm.pt --continue-train true
+
+sample_ddpm:
+	python ddpm.py sample --device mps --samples samples_mnist/ddpm_samples.png --model models/ddpm.pt
+sample_ddpm_ep180:
+	python ddpm.py sample --device mps --samples samples_mnist/ddpm_samples.png --model models/ddpm_ep180.pt
