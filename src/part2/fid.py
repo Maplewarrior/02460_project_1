@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     # Load real and generated images test data loader and the sampled images data loader
     _, real_images_dataloader = make_mnist_data(batch_size=100, do_transform=False) 
-    generated_images_dataloader = make_mnist_data_sampled(data_dir=args.sample_folder,batch_size=100, device=device)
+    generated_images_dataloader = make_mnist_data_sampled(data_dir=args.sample_folder, batch_size=100, device=device)
     # _, generated_images_dataloader = make_mnist_data(batch_size=100, do_transform=False)
 
     # Load the pretrained Inception v3 model
@@ -64,6 +64,7 @@ if __name__ == "__main__":
             fid_metric.update(real_images_preprocessed, is_real=True)
 
 
+    print("Calculating FID score...")
     # Compute FID score
     fid_score = fid_metric.compute()
     print(f"FID Score: {fid_score}")
@@ -72,5 +73,5 @@ if __name__ == "__main__":
     os.makedirs("samples", exist_ok=True)
     # append the FID score to the file
     with open("samples/fid.txt", "a") as f:
-        f.write(f"FID Score: {args.sample_folder}: {fid_score}\n")
+        f.write(f"FID Score - {args.sample_folder}: {fid_score}\n")
 
