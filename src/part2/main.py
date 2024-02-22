@@ -2,6 +2,7 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 from src.models.flow import MaskedCouplingLayer, Flow, GaussianBase
+from torchvision import datasets, transforms
 
 
 def train(model, optimizer, data_loader, epochs, device):
@@ -44,7 +45,7 @@ def train(model, optimizer, data_loader, epochs, device):
             progress_bar.update()
         mean_loss = total_loss / len(data_loader)
 
-def make_mnist_data():
+def make_mnist_data(batch_size=100):
     transform = transforms.Compose([transforms.ToTensor() ,
         transforms.Lambda(lambda x: x + torch.rand(x.shape)/255),
         transforms.Lambda(lambda x: (x -0.5) * 2.0),
@@ -61,10 +62,10 @@ def make_mnist_data():
         transform = transform
         )
     train_loader = torch.utils.data.DataLoader(train_data, 
-                                                batch_size=args.batch_size, 
+                                                batch_size=batch_size, 
                                                 shuffle=True)
     test_loader = torch.utils.data.DataLoader(test_data, 
-                                                batch_size=args.batch_size, 
+                                                batch_size=batch_size, 
                                                 shuffle=False)
     
     return train_loader, test_loader
@@ -169,7 +170,6 @@ def make_vae(M = 32):
 
 if __name__ == "__main__":
     import torch.utils.data
-    from torchvision import datasets, transforms
     from torchvision.utils import save_image
 
     # Parse arguments
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     for key, value in sorted(vars(args).items()):
         print(key, '=', value)
 
-    train_loader, test_loader = make_mnist_data()
+    train_loader, test_loader = make_mnist_data(args.batch_size)
     
     # Get the dimension of the dataset
     D = next(iter(train_loader))[0].shape[1]
