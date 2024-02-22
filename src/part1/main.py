@@ -6,7 +6,7 @@ from torchvision.utils import save_image, make_grid
 from tqdm import tqdm
 
 from src.models.vae_bernoulli import VAE, BernoulliDecoder, GaussianEncoder, make_enc_dec_networks
-from src.priors.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior
+from src.models.priors.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior
 
 def create_mask(M: int = 784, mask_type: str = 'random'):
     """
@@ -71,7 +71,8 @@ def evaluate_runs(model, data_loader, device, n_runs):
     mean_loss = torch.mean(torch.tensor(losses))
     std_loss = torch.std(torch.tensor(losses))
 
-    return mean_loss.item(), std_loss.item()
+    return mean_loss.item(), std_loss.item(), losses
+
 
 def train(model, optimizer, data_loader, epochs, device):
     """
@@ -180,6 +181,6 @@ if __name__ == '__main__':
     elif args.mode == 'eval':
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
         # losses = evaluate(model, mnist_test_loader, args.device)
-        mu, std = evaluate_runs(model, mnist_test_loader, args.device, 3)
+        mu, std, losses = evaluate_runs(model, mnist_test_loader, args.device, 3)
         pdb.set_trace()
     
