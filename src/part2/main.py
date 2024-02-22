@@ -130,8 +130,8 @@ def make_flow_model(D,
     mask = mask.to(device)
     
     for i in range(num_transformations):
-        scale_net = nn.Sequential(nn.Linear(D, num_hidden), nn.ReLU(), nn.Linear(num_hidden, D), nn.Tanh())
-        translation_net = nn.Sequential(nn.Linear(D, num_hidden), nn.ReLU(), nn.Linear(num_hidden, D))
+        scale_net = nn.Sequential(nn.Linear(D, num_hidden), nn.LeakyReLU(), nn.Linear(num_hidden, D), nn.Tanh())
+        translation_net = nn.Sequential(nn.Linear(D, num_hidden), nn.LeakyReLU(), nn.Linear(num_hidden, D), nn.Tanh())
 
         if mask_type == 'random':
             permuted_indices = torch.randperm(D)
@@ -191,7 +191,7 @@ if __name__ == "__main__":
     parser.add_argument('mode', type=str, default='train', choices=['train', 'sample', 'test', 'sample_save_batches'], help='what to do when running the script (default: %(default)s)')
     
     parser.add_argument('--model-type', type=str, choices=['flow', 'ddpm', 'vae'], help='torch device (default: %(default)s)')
-    
+
     parser.add_argument('--continue-train', type=bool, default=False, help='whether to continue training from ckpt (same path as "model") (default: %(default)s)')
     parser.add_argument('--model', type=str, default='model.pt', help='file to save model to or load model from (default: %(default)s)')
     parser.add_argument('--samples', type=str, default='samples.png', help='file to save samples in (default: %(default)s)')
@@ -211,7 +211,8 @@ if __name__ == "__main__":
         print(key, '=', value)
 
     train_loader, test_loader = make_mnist_data(args.batch_size, model_type=args.model_type, do_transform=True)
-    
+
+
     # Get the dimension of the dataset
     D = next(iter(train_loader))[0].shape[1]
 
@@ -274,15 +275,28 @@ if __name__ == "__main__":
             for i in range(n_batches):
                 batch_samples = (model.sample((n_samples,))) if args.model_type == 'flow'  else (model.sample((n_samples,D)))
 
-                # transform the samples back to the original space
-                if args.model_type == 'ddpm':
-                    batch_samples = batch_samples / 2 + 0.5
 
-                batch_samples = batch_samples / torch.max(torch.abs(batch_samples))
+                # transform the samples back to the original space
+                # if args.model_type == 'ddpm':
+                #     batch_samples = batch_samples / 2 + 0.5
+                #     batch_samples = batch_samples / torch.max(torch.abs(batch_samples))
+
+
+                # Find the minimum and maximum values in the data
+                min_val = torch.min(batch_samples)
+                max_val = torch.max(batch_samples)
+
+                # Compute the range of the data
+                range_val = max_val - min_val
+
+                # If the range is 0 (to avoid division by zero), return the original data
+                if range_val != 0:
+
+                # Normalize the data
+                    batch_samples = (batch_samples - min_val) / range_val
 
                 print("max:", torch.max(batch_samples))
                 print("min:", torch.min(batch_samples))
-
 
                 # Save the entire batch as a single tensor file
                 save_path = os.path.join(save_dir, f'batch_{i}.pt')
