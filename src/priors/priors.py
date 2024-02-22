@@ -69,7 +69,7 @@ class MixtureOfGaussiansPrior(nn.Module):
         prior = td.MixtureSameFamily(categorical, component_distribution)
 
         return prior
-    
+
 class FlowPrior(nn.Module):
     def __init__(self, M, n_transformations: int, latent_dim: int, device: str):
         super(FlowPrior,  self).__init__()
