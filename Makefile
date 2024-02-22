@@ -42,3 +42,9 @@ sample_ddpm:
 	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py sample --device mps --samples samples/ddpm_samples.png --model models/ddpm.pt
 sample_ddpm_ep180:
 	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py sample --device mps --samples samples/ddpm_samples.png --model models/ddpm_ep180.pt
+
+train_flow:
+	python $(PROJECT_NAME)/part2/run_flow.py train --device mps --batch-size 128 --epochs 10 --model models/flow.pt
+
+sample_flow: 
+	python $(PROJECT_NAME)/part2/run_flow.py sample --device mps --samples samples/flow_samples.png --model models/flow.pt
