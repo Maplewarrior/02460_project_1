@@ -77,7 +77,6 @@ class FlowPrior(nn.Module):
         self.M = self.masks.size(1)
         self.latent_dim = latent_dim # latent dimension of scale and translation networks
         self.device = device
-        
         base = GaussianPrior(self.M)
         transformations = self.compose_transformations(n_transformations)
         self.flow_model = Flow(base, transformations)
@@ -86,10 +85,9 @@ class FlowPrior(nn.Module):
     def compose_transformations(self, n_transformations: int):
         transformations = []
         for i in range(n_transformations):
-            mask_inv = (1-self.masks[i]) # Flip the i'th mask
             scale_net = nn.Sequential(nn.Linear(self.M, self.latent_dim), nn.ReLU(), nn.Linear(self.latent_dim, self.M), nn.Tanh())
             translation_net = nn.Sequential(nn.Linear(self.M, self.latent_dim), nn.ReLU(), nn.Linear(self.latent_dim, self.M))
-            transformations.append(MaskedCouplingLayer(scale_net, translation_net, mask_inv))
+            transformations.append(MaskedCouplingLayer(scale_net, translation_net, self.masks[i]))
 
         return transformations
     

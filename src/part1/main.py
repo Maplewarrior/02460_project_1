@@ -9,11 +9,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 import random
-
 from src.models.vae_bernoulli import VAE, BernoulliDecoder, GaussianEncoder, make_enc_dec_networks
 from src.models.priors import FlowPrior, MixtureOfGaussiansPrior, GaussianPrior, VampPrior
-from src.models.flow import create_mask
-
+from src.models.flow import create_masks
 
 def evaluate(model, data_loader, device):
     """
@@ -71,12 +69,11 @@ def make_evaluation_results(config, model, data_loader, n_runs):
         results[f'run_{i+1}'] = run
     
     # save results
-        ### TODO: Update filename with loss type (ELBO, IWAE) used for evaluation
-    modelname = config['model'].strip('.pt')
+    priorname = config['prior']
     lossname = "ELBO" if config['k'] == 1 else "IWAE"
-    with open(f'results/{modelname}_{lossname}_eval.json', 'w') as f:
+    with open(f'results/{priorname}_{lossname}_eval.json', 'w') as f:
         json.dump(results, f)
-
+    
 def train(model, optimizer, data_loader, epochs, device):
     """
     Train a VAE model.
@@ -217,11 +214,10 @@ def show_run_summary_statistics(filepath: str):
     print(f'Std across {len(run_keys)} runs: {std}')
     return mean, std
 
-
 if __name__ == '__main__':
     import pdb
-    show_run_summary_statistics('results/IWAE_flow_eval.json')
-    pdb.set_trace()
+    # show_run_summary_statistics('results/IWAE_flow_eval.json')
+    # pdb.set_trace()
 
     # Parse arguments
     import argparse
@@ -237,6 +233,7 @@ if __name__ == '__main__':
     parser.add_argument('--mask-type', type=str, default='random', choices=['random', 'chequerboard'], help='Type of mask to use with flow prior (default: %(default)s)')
     parser.add_argument('--k', type=int, default=1, help='The sample size when using IWAE loss (default: %(default)s)')
     args = parser.parse_args()
+
     print('\n# Options')
     for key, value in sorted(vars(args).items()):
         print(key, '=', value)
@@ -259,10 +256,12 @@ if __name__ == '__main__':
     
     elif args.prior == 'MoG':
         prior = MixtureOfGaussiansPrior(latent_dim=M, num_components=10)
+        
     elif args.prior == 'Flow':
-        mask = create_mask(M=M, mask_type='random')
-        pdb.set_trace()
-        prior = FlowPrior(mask=mask, n_transformations=20, latent_dim=256, device=args.device)
+        num_transformations = 20
+        mask = create_masks(n_masks=num_transformations, M=M, mask_type='random')
+        prior = FlowPrior(masks=mask, n_transformations=num_transformations, latent_dim=256, device=args.device)
+
     elif args.prior == 'Vamp':
         prior = VampPrior(num_components=50, latent_dim=M, num_pseudo_inputs=500)
 
@@ -281,9 +280,8 @@ if __name__ == '__main__':
         train(model, optimizer, mnist_train_loader, args.epochs, args.device)
         make_evaluation_results(vars(args), model, mnist_test_loader, n_runs=10)
         
-        modelname = args.model.strip('.pt')
         lossname = 'ELBO' if args.k == 1 else 'IWAE'
-        show_run_summary_statistics(filepath=f'results/{modelname}_{lossname}_eval.json')
+        show_run_summary_statistics(filepath=f'results/{args.prior}_{lossname}_eval.json')
         # Save model
         torch.save(model.state_dict(), args.model)
         
@@ -292,7 +290,7 @@ if __name__ == '__main__':
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
         pdb.set_trace()
         evaluate_runs(model, mnist_test_loader, args.device)
-        
+
     elif args.mode == 'sample':
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
 

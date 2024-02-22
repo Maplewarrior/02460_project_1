@@ -29,7 +29,6 @@ class MaskedCouplingLayer(nn.Module):
     """
     An affine coupling layer for a normalizing flow.
     """
-
     def __init__(self, scale_net, translation_net, mask):
         """
         Define a coupling layer.
@@ -64,7 +63,7 @@ class MaskedCouplingLayer(nn.Module):
             The sum of the log determinants of the Jacobian matrices of the forward transformations of dimension `(batch_size, feature_dim)`.
         """
         z_masked = self.mask * z
-        inv_mask = (1- self.mask)
+        inv_mask = (1 - self.mask)
 
         s_out = self.scale_net(z_masked)
         t_out = self.translation_net(z_masked)
@@ -209,3 +208,11 @@ def create_mask(M: int = 784, mask_type: str = 'random'):
         mask = torch.Tensor([1 if (i+j) % 2 == 0 else 0 for i in range(M//2) for j in range(M//2)])
 
     return mask
+
+def create_masks(n_masks: int, M: int = 784, mask_type: str = 'random'):
+    masks = torch.empty((n_masks, M))
+    for i in range(n_masks):
+        masks[i] = create_mask(M, mask_type)
+        if (i % 2 == 0) and mask_type == 'chequerboard':
+            masks[i] = 1 - masks[i]
+    return masks
