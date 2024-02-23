@@ -49,9 +49,9 @@ sample_ddpm_ep180:
 		--samples samples/ddpm/ddpm_samples.pdf --model models/ddpm_ep180.pt
 	
 TRAIN_FLOW_CMD = python $(PROJECT_NAME)/part2/main.py train --model-type flow \
-		--num-transformations 30 --num-hidden 256 --mask-type cb \
-		--batch-size 32 --epochs 2 --model models/flow.pt \
-		--continue-train true
+		--num-transformations 30 --num-hidden 256 --mask-type random \
+		--batch-size 64 --epochs 5 --model models/flow.pt 
+
 train_flow:
 	$(TRAIN_FLOW_CMD)
 train_flow_cuda:

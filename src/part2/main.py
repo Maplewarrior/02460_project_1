@@ -130,8 +130,15 @@ def make_flow_model(D,
     mask = mask.to(device)
     
     for i in range(num_transformations):
-        scale_net = nn.Sequential(nn.Linear(D, num_hidden), nn.ReLU(), nn.Linear(num_hidden, D), nn.Tanh())
-        translation_net = nn.Sequential(nn.Linear(D, num_hidden), nn.ReLU(), nn.Linear(num_hidden, D))
+        # scale_net = nn.Sequential(nn.Linear(D, num_hidden), nn.ReLU(), nn.Linear(num_hidden, D), nn.Tanh())
+        # translation_net = nn.Sequential(nn.Linear(D, num_hidden), nn.ReLU(), nn.Linear(num_hidden, D))
+        scale_net = nn.Sequential(nn.Linear(D, num_hidden), nn.LeakyReLU(), 
+                                  nn.Linear(num_hidden, num_hidden), nn.LeakyReLU(),
+                                  nn.Linear(num_hidden, D), nn.Tanh())
+        translation_net = nn.Sequential(nn.Linear(D, num_hidden), 
+                                        nn.ReLU(), 
+                                        nn.Linear(num_hidden, D), 
+                                        nn.Tanh())
 
         if mask_type == 'random':
             permuted_indices = torch.randperm(D)
