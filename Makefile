@@ -66,3 +66,19 @@ sample_flow_cuda:
 		--device cuda --samples samples/flow/flow_samples.pdf  \
 		--num-transformations 30 --num-hidden 256 --mask-type random \
 		--model models/flow.pt
+
+batch_sample_ddpm_cuda:
+	python $(PROJECT_NAME)/part2/main.py sample_save_batches --model-type ddpm \
+	--device cuda --samples samples/ddpm/ddpm_samples.pdf --model models/ddpm_ep180.pt \
+	--num-samples 5000 --batch-size 100
+
+batch_sample_flow_cuda:
+	python $(PROJECT_NAME)/part2/main.py sample_save_batches --model-type flow \
+	--device cuda --samples samples/flow/flow_samples.pdf --model models/flow.pt \
+	--num-samples 5000 --num-transformations 30 --num-hidden 256 --mask-type random
+
+fid_ddpm_cuda:
+	python $(PROJECT_NAME)/part2/fid.py --sample-folder samples/ddpm/batch_samples  --device cuda
+
+fid_flow_cuda:
+	python $(PROJECT_NAME)/part2/fid.py --sample-folder samples/flow//batch_samples  --device cuda
