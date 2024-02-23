@@ -204,7 +204,7 @@ def create_mask(M: int = 784, mask_type: str = 'random'):
     if mask_type == 'random': # create a random mask with 50% ones and rest 0
         mask = mask[torch.randperm(len(mask))]
     
-    elif mask_type == 'chequerboard':
+    elif mask_type == 'chequerboard' or mask_type == 'cb':
         mask = torch.Tensor([1 if (i+j) % 2 == 0 else 0 for i in range(M//2) for j in range(M//2)])
 
     return mask
@@ -213,6 +213,6 @@ def create_masks(n_masks: int, M: int = 784, mask_type: str = 'random'):
     masks = torch.empty((n_masks, M))
     for i in range(n_masks):
         masks[i] = create_mask(M, mask_type)
-        if (i % 2 == 0) and mask_type == 'chequerboard':
+        if (i % 2 == 0) and (mask_type == 'chequerboard' or mask_type == 'cb'):
             masks[i] = 1 - masks[i]
     return masks
