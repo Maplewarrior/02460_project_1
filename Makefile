@@ -33,39 +33,38 @@ clean:
 # PROJECT RULES                                                                 #
 #################################################################################
 
+MAIN_PART2 = $(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py
+TRAIN_PART2 = $(MAIN_PART2) train
+SAMPLE_PART2 = $(MAIN_PART2) sample
+
+DDPM_PARAMS = --model-type ddpm \
+	--epochs 10 --batch-size 128
+
 train_ddpm_cuda_from_scratch:
-	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py train --model-type ddpm --device cuda \
-		--batch-size 128 --epochs 10 --model models/ddpm.pt
+	$(TRAIN_PART2) $(DDPM_PARAMS) --model models/ddpm.pt --device cuda
 train_ddpm_cuda_continue:
-	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py train --model-type ddpm --device cuda \
-		--batch-size 128 --epochs 10 --model models/ddpm.pt \
-		--continue-train true
+	$(TRAIN_PART2) $(DDPM_PARAMS) --model models/ddpm.pt --device cuda --continue-train true
 
 sample_ddpm:
-	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py sample --model-type ddpm --device mps \
-		--samples samples/ddpm/ddpm_samples.pdf --model models/ddpm.pt
+	$(SAMPLE_PART2) $(DDPM_PARAMS) --device cuda \
+		--samples samples/ddpm/ddpm_samples.pdf
 sample_ddpm_ep180:
-	$(PYTHON_INTERPRETER) $(PROJECT_NAME)/part2/main.py sample --model-type ddpm --device mps \
+	$(SAMPLE_PART2) $(DDPM_PARAMS) --device cuda \
 		--samples samples/ddpm/ddpm_samples.pdf --model models/ddpm_ep180.pt
-	
-TRAIN_FLOW_CMD = python $(PROJECT_NAME)/part2/main.py train --model-type flow \
-		--num-transformations 30 --num-hidden 256 --mask-type random \
-		--batch-size 64 --epochs 5 --model models/flow.pt 
+
+FLOW_PARAMS = --model-type flow \
+	--num-transformations 30 --num-hidden 256 --mask-type random \
+	--batch-size 64 --epochs 5 --model models/flow.pt
 
 train_flow:
-	$(TRAIN_FLOW_CMD)
+	$(TRAIN_PART2) $(FLOW_PARAMS)
 train_flow_cuda:
-	$(TRAIN_FLOW_CMD) --device cuda
+	$(TRAIN_PART2) $(FLOW_PARAMS) --device cuda --continue-train true
 
 sample_flow: 
-	python $(PROJECT_NAME)/part2/main.py sample --model-type flow \
-		--device mps --samples samples/flow/flow_samples.pdf --mask-type cb \
-		--model models/flow.pt
+	$(SAMPLE_PART2) $(FLOW_PARAMS)
 sample_flow_cuda: 
-	python $(PROJECT_NAME)/part2/main.py sample --model-type flow \
-		--device cuda --samples samples/flow/flow_samples.pdf  \
-		--num-transformations 30 --num-hidden 256 --mask-type random \
-		--model models/flow.pt
+	$(SAMPLE_PART2) $(FLOW_PARAMS) --device cuda --samples samples/flow/flow_samples.pdf
 
 batch_sample_ddpm_cuda:
 	python $(PROJECT_NAME)/part2/main.py sample_save_batches --model-type ddpm \
@@ -81,4 +80,4 @@ fid_ddpm_cuda:
 	python $(PROJECT_NAME)/part2/fid.py --sample-folder samples/ddpm/batch_samples  --device cuda
 
 fid_flow_cuda:
-	python $(PROJECT_NAME)/part2/fid.py --sample-folder samples/flow//batch_samples  --device cuda
+	python $(PROJECT_NAME)/part2/fid.py --sample-folder samples/flow/batch_samples  --device cuda
