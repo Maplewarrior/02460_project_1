@@ -24,6 +24,41 @@ def make_enc_dec_networks(M: int):
     )
     return encoder_net, decoder_net
 
+def make_enc_dec_networks_cnn(M: int):
+    from src.models.utils import Unsqueeze, Reshape
+
+    # Define encoder and decoder networks, CNN type
+    encoder_net = nn.Sequential(
+        Unsqueeze(dim=1),
+        nn.Conv2d(1, 8, kernel_size=4, stride=2, padding=1),
+        nn.ReLU(),
+        nn.Conv2d(8, 16, kernel_size=4, stride=2, padding=1),
+        nn.ReLU(),
+        nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=1),
+        nn.ReLU(),
+        nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=0),
+        nn.ReLU(),
+        nn.AdaptiveAvgPool2d(output_size=1),
+        Reshape((64,)),
+        nn.Linear(64, 128),
+        nn.Linear(128, M*2)
+    )
+
+    decoder_net = nn.Sequential(
+        nn.Linear(M, 64),
+        Reshape((64, 1, 1)), 
+        nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=0),
+        nn.ReLU(),
+        nn.ConvTranspose2d(in_channels=32, out_channels=16, kernel_size=4,stride=2, padding=1),
+        nn.ReLU(),
+        nn.ConvTranspose2d(in_channels=16, out_channels=8, kernel_size=4,stride=2, padding=1),
+        nn.ReLU(),
+        nn.ConvTranspose2d(in_channels=8, out_channels=1, kernel_size=4,stride=2, padding=3),
+        nn.Sigmoid()
+    )
+
+    return encoder_net, decoder_net
+
 class GaussianEncoder(nn.Module):
     def __init__(self, encoder_net):
         """
@@ -48,6 +83,7 @@ class GaussianEncoder(nn.Module):
         """
         mean, std = torch.chunk(self.encoder_net(x), 2, dim=-1)
         return td.Independent(td.Normal(loc=mean, scale=torch.exp(std)), 1)
+        
 class BernoulliDecoder(nn.Module):
     def __init__(self, decoder_net):
         """
@@ -73,6 +109,35 @@ class BernoulliDecoder(nn.Module):
         """
         logits = self.decoder_net(z)
         return td.Independent(td.Bernoulli(logits=logits), 2)
+
+class MultivariateGaussianDecoder(nn.Module):
+    def __init__(self, decoder_net, learn_variance=False):
+        """
+        Define a multivariate gaussian decoder distribution based on a given decoder network.
+
+        Parameters: 
+        encoder_net: [torch.nn.Module]             
+           The decoder network that takes as a tensor of dim `(batch_size, M) as
+           input, where M is the dimension of the latent space, and outputs a
+           tensor of dimension (batch_size, feature_dim1, feature_dim2).
+        """
+        super(MultivariateGaussianDecoder, self).__init__()
+        self.decoder_net = decoder_net
+        self.learn_variance = learn_variance
+        self.log_var = nn.Parameter(torch.log(torch.ones(28, 28) * .5), requires_grad=learn_variance)
+
+    def forward(self, z):
+        """
+        Given a batch of latent variables, return a Gaussian distribution over the data space.
+
+        Parameters:
+        z: [torch.Tensor] 
+           A tensor of dimension `(batch_size, M)`, where `M` is the dimension of the latent space.
+        """
+        # pdb.set_trace()
+        dec_out = self.decoder_net(z)
+        std = torch.exp(.5 * self.log_var)
+        return td.Independent(td.Normal(loc=dec_out, scale=std), 2)
 
 
 class VAE(nn.Module):
@@ -152,6 +217,12 @@ class VAE(nn.Module):
         z = self.prior().sample(torch.Size([n_samples]))
         return self.decoder(z).sample()
     
+    def loss(self, x):
+        """
+        Lazy way to change interface to match part2/main.py
+        """
+        return self(x)
+
     def forward(self, x):
         """
         Compute the negative ELBO for the given batch of data.

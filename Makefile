@@ -47,24 +47,38 @@ train_ddpm_cuda_continue:
 
 sample_ddpm:
 	$(SAMPLE_PART2) $(DDPM_PARAMS) --device cuda \
-		--samples samples/ddpm/ddpm_samples.pdf
+		--samples samples/ddpm/report/ddpm_sample.pdf
 sample_ddpm_ep180:
 	$(SAMPLE_PART2) $(DDPM_PARAMS) --device cuda \
-		--samples samples/ddpm/ddpm_samples.pdf --model models/ddpm_ep180.pt
+		--samples samples/ddpm/report/ddpm_sample.pdf --model models/ddpm_ep180.pt
 
+FLOW_MODEL = flow_ep10_rnd_nt30_nh256_hl1.pt
 FLOW_PARAMS = --model-type flow \
 	--num-transformations 30 --num-hidden 256 --mask-type random \
-	--batch-size 64 --epochs 5 --model models/flow.pt
+	--batch-size 32 --epochs 10 \
+	--model models/$(FLOW_MODEL)
 
 train_flow:
 	$(TRAIN_PART2) $(FLOW_PARAMS)
 train_flow_cuda:
-	$(TRAIN_PART2) $(FLOW_PARAMS) --device cuda --continue-train true
+	$(TRAIN_PART2) $(FLOW_PARAMS) --device cuda
 
 sample_flow: 
 	$(SAMPLE_PART2) $(FLOW_PARAMS)
 sample_flow_cuda: 
-	$(SAMPLE_PART2) $(FLOW_PARAMS) --device cuda --samples samples/flow/flow_samples.pdf
+	$(SAMPLE_PART2) $(FLOW_PARAMS) --device cuda --samples samples/flow/report/flow_sample.pdf
+
+VAE_MODEL = vae_flowP_mvn-dec.pt
+VAE_PARAMS = --model-type vae \
+	--batch-size 64 --epochs 15 \
+	--model models/$(VAE_MODEL)
+
+train_vae_cuda:
+	$(TRAIN_PART2) $(VAE_PARAMS) --device cuda
+train_vae_cuda_cont:
+	$(TRAIN_PART2) $(VAE_PARAMS) --device cuda --continue-train true
+sample_vae_cuda:
+	$(SAMPLE_PART2) $(VAE_PARAMS) --device cuda --samples samples/vae/report/vae_sample.pdf
 
 batch_sample_ddpm_cuda:
 	python $(PROJECT_NAME)/part2/main.py sample_save_batches --model-type ddpm \

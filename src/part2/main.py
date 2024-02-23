@@ -1,7 +1,8 @@
+import pdb
 from tqdm import tqdm
 import torch
 import torch.nn as nn
-from src.models.flow import MaskedCouplingLayer, Flow, GaussianBase, create_mask
+from src.models.flow import MaskedCouplingLayer, Flow, GaussianBase, create_mask, create_masks
 from torchvision import datasets, transforms
 import os
 
@@ -64,6 +65,12 @@ def make_mnist_data(batch_size=100, model_type='ddpm', do_transform=False):
                 transforms.Lambda(lambda x: (x -0.5) * 2.0),
                 transforms.Lambda(lambda x: x.flatten())]
                 )
+        elif model_type == 'vae':
+            threshold = .5
+            transform = transforms.Compose([transforms.ToTensor(), 
+                                            # transforms.Lambda(lambda x: (threshold < x).float()),
+                                            transforms.Lambda(lambda x: x.squeeze())
+                                            ])
         else:
             transform = transforms.Compose([transforms.ToTensor() ,
                 transforms.Lambda(lambda x: x + torch.rand(x.shape)/255.0),
@@ -127,16 +134,17 @@ def make_flow_model(D: int,
     for _ in range(num_transformations):
         scale_net = nn.Sequential(nn.Linear(D, num_hidden),
                                   nn.ReLU(), 
-                                  nn.Linear(num_hidden, num_hidden), 
-                                  nn.ReLU(), 
+                                #   nn.Linear(num_hidden, num_hidden), 
+                                #   nn.ReLU(), 
                                   nn.Linear(num_hidden, D), 
                                   nn.Tanh())
         translation_net = nn.Sequential(nn.Linear(D, num_hidden), 
                                         nn.ReLU(), 
-                                        nn.Linear(num_hidden, num_hidden), 
-                                        nn.ReLU(), 
+                                        # nn.Linear(num_hidden, num_hidden), 
+                                        # nn.ReLU(), 
                                         nn.Linear(num_hidden, D), 
-                                        nn.Tanh())
+                                        # nn.Tanh()
+                                        )
 
         if mask_type == 'random':
             permuted_indices = torch.randperm(D)
@@ -178,13 +186,23 @@ def make_vae(M: int = 32,
     @M: dimension of the latent space, i.e. ultimate output dimension of encoder, input dimension of decoder, default=32
     """
     # raise Exception("flow model initialization not implemented yet!")
-    from src.models.vae_bernoulli import VAE, GaussianEncoder, BernoulliDecoder, make_enc_dec_networks
-    from src.models.priors import GaussianPrior
+    from src.models.vae_bernoulli import VAE, GaussianEncoder, \
+        BernoulliDecoder, MultivariateGaussianDecoder, \
+        make_enc_dec_networks, make_enc_dec_networks_cnn
+    from src.models.priors import GaussianPrior, VampPrior, MixtureOfGaussiansPrior, FlowPrior
     
-    prior = GaussianPrior(M)
+    # prior = GaussianPrior(M)
+    # prior = MixtureOfGaussiansPrior(latent_dim=M, num_components=10)
+    prior = FlowPrior(masks=create_masks(n_masks=20, M=M, mask_type='random'),
+                      n_transformations=20, 
+                      latent_dim=256, 
+                      device=args.device)
+    # prior = VampPrior(num_components=50, latent_dim=M, num_pseudo_inputs=500) 
     encoder_net, decoder_net = make_enc_dec_networks(M)
+    # encoder_net, decoder_net = make_enc_dec_networks_cnn(M)
     encoder = GaussianEncoder(encoder_net=encoder_net)
-    decoder = BernoulliDecoder(decoder_net=decoder_net)
+    # decoder = BernoulliDecoder(decoder_net=decoder_net)
+    decoder = MultivariateGaussianDecoder(decoder_net=decoder_net, learn_variance=True)
 
     model = VAE(prior=prior, encoder=encoder, decoder=decoder)
     if continue_train == True:
@@ -258,17 +276,20 @@ if __name__ == "__main__":
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device))) # ret vigtig :)
         model.eval()
         with torch.no_grad():
-            n_samples = 32
-            samples = (model.sample((n_samples,))).cpu() if args.model_type == 'flow'  else (model.sample((n_samples,D))).cpu()
-
-            # Transform the samples back to the original space
+            n_samples = 16
             if args.model_type == 'ddpm':
-                samples = samples / 2 + 0.5 # ! enable for DDPM!
-            # for i in range(n_samples):
-            #     save_path =  f"{(args.samples).split('.pdf')[0]}_{i}.pdf" # make save_path in format {save_loc}/{filename}_{1,2,...,n_samples}.{ext}
-            #     save_image(samples[i].view(1, 1, 28, 28), save_path, format='pdf')
+                samples = model.sample((n_samples,D)).cpu()
+                samples = samples / 2 + 0.5 # ? Transform the samples back to the original space
+            elif args.model_type == 'flow':
+                samples = model.sample((n_samples,)).cpu()
+            elif args.model_type == 'vae':
+                samples = model.sample(n_samples).cpu()
+
+            for i in range(n_samples):
+                save_path =  f"{(args.samples).split('.pdf')[0]}_{i}.pdf" # make save_path in format {save_loc}/{filename}_{1,2,...,n_samples}.{ext}
+                save_image(samples[i].view(1, 1, 28, 28), save_path, format='pdf')
             
-            save_image(samples.view(n_samples, 1, 28, 28), args.samples)
+            # save_image(samples.view(n_samples, 1, 28, 28), args.samples)
 
     elif args.mode == 'sample_save_batches':
         # Load the model
