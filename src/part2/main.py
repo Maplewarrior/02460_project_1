@@ -26,6 +26,8 @@ def train(model, optimizer, data_loader, epochs, device):
     total_steps = len(data_loader)*epochs
     progress_bar = tqdm(range(total_steps), desc="Training")
 
+    clip_value = 1.0 # max gradient norm for gradient clipping
+
     mean_loss = 0
     for epoch in range(epochs):
         total_loss = 0
@@ -37,6 +39,11 @@ def train(model, optimizer, data_loader, epochs, device):
             optimizer.zero_grad()
             loss = model.loss(x)
             loss.backward()
+
+            if isinstance(model, Flow):
+                # clip gradients at norm 1 due to unstable training otherwise
+                torch.nn.utils.clip_grad_norm_(model.parameters(), clip_value)
+
             optimizer.step()
 
             total_loss = total_loss + loss.detach().item() * x.shape[0]
@@ -81,11 +88,12 @@ def make_mnist_data(batch_size=100, model_type='ddpm', do_transform=False):
     
     return train_loader, test_loader
 
-def make_flow_model(D, 
-                    mask_type = "default", 
-                    device = "cpu", 
-                    num_transformations = 30, 
-                    num_hidden = 256):
+def make_flow_model(D: int, 
+                    mask_type: str = "default", 
+                    device: str = "cpu", 
+                    num_transformations: int = 30, 
+                    num_hidden: int = 256,
+                    continue_train: bool = False):
     """ Make a flow model. 
     
     Args:
@@ -112,30 +120,21 @@ def make_flow_model(D,
 
     # Define transformations
     transformations =[]
-    # mask = torch.Tensor([1 if (i+j) % 2 == 0 else 0 for i in range(28) for j in range(28)])
-
-    # Make a mask that is 1 for the first half of the features and 0 for the second half
-    # if mask_type == 'default' or mask_type == 'random':
-    #     mask = torch.zeros((D,))
-    #     mask[D//2:] = 1
-    # elif mask_type == 'cb':
-    #     mask = torch.zeros((28, 28))
-    #     cheq_size = 2
-    #     # Set 1s in a chequerboard pattern
-    #     mask[0::cheq_size, 0::cheq_size] = 1
-    #     mask[1::cheq_size, 1::cheq_size] = 1 
-    #     mask = mask.flatten()
 
     mask = create_mask(M=D, mask_type=mask_type)
     mask = mask.to(device)
     
-    for i in range(num_transformations):
+    for _ in range(num_transformations):
         scale_net = nn.Sequential(nn.Linear(D, num_hidden),
-                                  nn.LeakyReLU(), 
+                                  nn.ReLU(), 
+                                  nn.Linear(num_hidden, num_hidden), 
+                                  nn.ReLU(), 
                                   nn.Linear(num_hidden, D), 
                                   nn.Tanh())
         translation_net = nn.Sequential(nn.Linear(D, num_hidden), 
-                                        nn.LeakyReLU(), 
+                                        nn.ReLU(), 
+                                        nn.Linear(num_hidden, num_hidden), 
+                                        nn.ReLU(), 
                                         nn.Linear(num_hidden, D), 
                                         nn.Tanh())
 
@@ -149,10 +148,12 @@ def make_flow_model(D,
 
     # Define flow model
     model = Flow(base, transformations).to(device)
+    if continue_train == True:
+        model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
     return model
 
-def make_ddpm(T = 1_000, 
-              continue_train=False):
+def make_ddpm(T: int = 1_000, 
+              continue_train: bool = False):
     """
     params: 
     @T: number of steps in the diffusion process, default=1_000
@@ -170,7 +171,8 @@ def make_ddpm(T = 1_000,
 
     return model
 
-def make_vae(M = 32):
+def make_vae(M: int = 32,
+             continue_train: bool=False):
     """
     params: 
     @M: dimension of the latent space, i.e. ultimate output dimension of encoder, input dimension of decoder, default=32
@@ -184,7 +186,11 @@ def make_vae(M = 32):
     encoder = GaussianEncoder(encoder_net=encoder_net)
     decoder = BernoulliDecoder(decoder_net=decoder_net)
 
-    return VAE(prior=prior, encoder=encoder, decoder=decoder)
+    model = VAE(prior=prior, encoder=encoder, decoder=decoder)
+    if continue_train == True:
+        model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
+
+    return model
 
 
 if __name__ == "__main__":
@@ -227,11 +233,12 @@ if __name__ == "__main__":
                                 device=args.device, 
                                 mask_type=args.mask_type, 
                                 num_transformations=args.num_transformations, 
-                                num_hidden=args.num_hidden)
+                                num_hidden=args.num_hidden,
+                                continue_train=args.continue_train)
     elif args.model_type == 'ddpm':
         model = make_ddpm(continue_train=args.continue_train)
     elif args.model_type == 'vae':
-        model = make_vae()
+        model = make_vae(continue_train=args.continue_train)
 
     model = model.to(args.device)
 
@@ -251,16 +258,18 @@ if __name__ == "__main__":
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device))) # ret vigtig :)
         model.eval()
         with torch.no_grad():
-            n_samples = 4
+            n_samples = 32
             samples = (model.sample((n_samples,))).cpu() if args.model_type == 'flow'  else (model.sample((n_samples,D))).cpu()
 
             # Transform the samples back to the original space
             if args.model_type == 'ddpm':
                 samples = samples / 2 + 0.5 # ! enable for DDPM!
-            for i in range(n_samples):
-                save_path =  f"{(args.samples).split('.pdf')[0]}_{i}.pdf" # make save_path in format {save_loc}/{filename}_{1,2,...,n_samples}.{ext}
-                save_image(samples[i].view(1, 1, 28, 28), save_path, format='pdf')
-    
+            # for i in range(n_samples):
+            #     save_path =  f"{(args.samples).split('.pdf')[0]}_{i}.pdf" # make save_path in format {save_loc}/{filename}_{1,2,...,n_samples}.{ext}
+            #     save_image(samples[i].view(1, 1, 28, 28), save_path, format='pdf')
+            
+            save_image(samples.view(n_samples, 1, 28, 28), args.samples)
+
     elif args.mode == 'sample_save_batches':
         # Load the model
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
