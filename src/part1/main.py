@@ -152,7 +152,11 @@ def prior_posterior_plot(model, data_loader, device, args):
         
     # Create a meshgrid with latent dim = 2
     nx, ny = (600, 600)
-    # set coords to min and max of the samples
+    # set coords to max of the samples
+    # if args.prior == 'Flow':
+    #     coords = np.max(np.abs(posterior_samples)) * 1
+
+    # else:
     coords = np.max(np.abs(posterior_samples))
     #coords = 9
 
@@ -161,27 +165,45 @@ def prior_posterior_plot(model, data_loader, device, args):
     xv, yv = np.meshgrid(x, y)
     meshgrid = np.stack((xv.flatten(), yv.flatten()), axis=1)
     mesh_tensor = torch.FloatTensor(meshgrid).to(device) #shape is (nx*ny, 2) = torch.size([10000, 2])
+
+    #if args.prior == 'Flow':
+        #inverse_mesh_tensor = model.prior().inverse(mesh_tensor)
+     #   log_prior_density = model.prior().log_prob(mesh_tensor).detach().cpu().numpy()
+        # the flow is high for 
+        
+        #log_prior_density = model.prior().log_prob(inverse_mesh_tensor).exp().detach().cpu().numpy()
+        
+        # multiply by the jacobian
+        #log_prior_density = model.prior().log_abs_det_jacobian(mesh_tensor, None).detach().cpu().numpy()
+    
     log_prior_density = model.prior().log_prob(mesh_tensor).detach().cpu().numpy()
 
-     
     # Create a contour plot
-    plt.figure(figsize=(14, 14))
-    contour = plt.contourf(x, y, log_prior_density.reshape(nx, ny), cmap='viridis', levels=60, alpha=0.7)
-    scatter = plt.scatter(posterior_samples[:, 0], posterior_samples[:, 1], c=labels, cmap='tab10', s=1, alpha=0.8)
+    
+    # Comments: larger legend, colourbar, title and x and y labels to read easier. A
+    plt.rcParams.update({'font.size': 20})
+    plt.rcParams.update({'legend.fontsize': 20})
+    plt.rcParams.update({'axes.labelsize': 20})
 
-    handles, labels = scatter.legend_elements(num=10)
-    legend = plt.legend(handles, labels, title="Class Labels", loc='upper right')
+    plt.figure(figsize=(12,12))
+
+    contour = plt.contourf(x, y, log_prior_density.reshape(nx, ny), cmap='viridis', levels=60, alpha=0.7)
     colorbar = plt.colorbar(contour, label="Log Prior Density", fraction=0.03, pad=0.01)
+    colorbar.ax.tick_params(labelsize=20)
+
+    scatter = plt.scatter(posterior_samples[:, 0], posterior_samples[:, 1], c=labels, cmap='tab10', s=1, alpha=0.9)
+    handles, labels = scatter.legend_elements(num=10)
+    legend = plt.legend(handles, labels, title="Class Labels", loc='upper right', fontsize=20)
 
     # Adjust figure size to accommodate colorbar on the right
     plt.subplots_adjust(right=0.85)
 
     priorname = args.prior.replace('_', ' ')
-    plt.title(f'Contour plot of Log {priorname} Prior Density with Posterior samples', fontsize=20)
-    plt.xlabel('X')
-    plt.ylabel('Y')
+    plt.title(f'Contour plot of Log {priorname} Prior Density with Posterior samples', fontsize=24)
+    plt.xlabel('X', fontsize=20)
+    plt.ylabel('Y', fontsize=20)
     plt.tight_layout(rect=[0, 0, 0.95, 1])  # Adjust rect for title and ylabel
-    plt.savefig(f'results/prior_posterior_{priorname}.png')
+    plt.savefig(f'results/prior_posterior_{priorname}.pdf')
     plt.show()
 
     # plt.figure(figsize=(14, 14))
@@ -229,7 +251,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch-size', type=int, default=32, metavar='N', help='batch size for training (default: %(default)s)')
     parser.add_argument('--epochs', type=int, default=10, metavar='N', help='number of epochs to train (default: %(default)s)')
     parser.add_argument('--latent-dim', type=int, default=32, metavar='N', help='dimension of latent variable (default: %(default)s)')
-    parser.add_argument('--prior', type=str, default='standard_normal', choices=['Standard_Normal', 'MoG', 'Flow', 'Vamp'], help='Type of prior distribution over latents e.g. p(z)')
+    parser.add_argument('--prior', type=str, default='Standard_Normal', choices=['Standard_Normal', 'MoG', 'Flow', 'Vamp'], help='Type of prior distribution over latents e.g. p(z)')
     parser.add_argument('--mask-type', type=str, default='random', choices=['random', 'chequerboard'], help='Type of mask to use with flow prior (default: %(default)s)')
     parser.add_argument('--k', type=int, default=1, help='The sample size when using IWAE loss (default: %(default)s)')
     args = parser.parse_args()
@@ -258,9 +280,9 @@ if __name__ == '__main__':
         prior = MixtureOfGaussiansPrior(latent_dim=M, num_components=10)
         
     elif args.prior == 'Flow':
-        num_transformations = 20
+        num_transformations = 10
         mask = create_masks(n_masks=num_transformations, M=M, mask_type='random')
-        prior = FlowPrior(masks=mask, n_transformations=num_transformations, latent_dim=256, device=args.device)
+        prior = FlowPrior(masks=mask, n_transformations=num_transformations, latent_dim=256, device=args.device) #latent dim is num_hidden
 
     elif args.prior == 'Vamp':
         prior = VampPrior(num_components=50, latent_dim=M, num_pseudo_inputs=500)
