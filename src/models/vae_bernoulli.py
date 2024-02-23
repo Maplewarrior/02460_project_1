@@ -100,8 +100,14 @@ class VAE(nn.Module):
         self.k = k
         
 
-    def IWAE(self, x):
-        
+    def iwae(self, x):
+        """
+        Compute the IWAE for the given batch of data.
+
+        Parameters:
+        x: [torch.Tensor] 
+           A tensor of dimension `(batch_size, feature_dim1, feature_dim2, ...)`
+        """
         x = x.repeat(self.k, 1, 1)
         q = self.encoder(x)
         h = q.rsample()
@@ -111,9 +117,9 @@ class VAE(nn.Module):
         log_q_h_x = q.log_prob(h)
         marginal_likelihood = (log_p_x_h + log_p_h - log_q_h_x).view(self.k, x.size(0)//self.k)
 
-        loss = (torch.logsumexp(marginal_likelihood, dim=0) - torch.log(torch.tensor(self.k))).mean()
+        iwae = (torch.logsumexp(marginal_likelihood, dim=0) - torch.log(torch.tensor(self.k))).mean()
         
-        return loss
+        return iwae
 
 
     def elbo(self, x):
@@ -123,8 +129,6 @@ class VAE(nn.Module):
         Parameters:
         x: [torch.Tensor] 
            A tensor of dimension `(batch_size, feature_dim1, feature_dim2, ...)`
-           n_samples: [int]
-           Number of samples to use for the Monte Carlo estimate of the ELBO.
         """
         q = self.encoder(x)
         z = q.rsample() # reparameterization
@@ -156,4 +160,4 @@ class VAE(nn.Module):
         x: [torch.Tensor] 
            A tensor of dimension `(batch_size, feature_dim1, feature_dim2)`
         """
-        return -self.elbo(x) if self.k == 1 else -self.IWAE(x)
+        return -self.elbo(x) if self.k == 1 else -self.iwae(x)
