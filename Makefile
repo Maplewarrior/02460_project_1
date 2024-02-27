@@ -52,9 +52,9 @@ sample_ddpm_ep180:
 	$(SAMPLE_PART2) $(DDPM_PARAMS) --device cuda \
 		--samples samples/ddpm/report/ddpm_sample.pdf --model models/ddpm_ep180.pt
 
-FLOW_MODEL = flow_ep10_rnd_nt30_nh256_hl1.pt
+FLOW_MODEL = flow_ep10_rnd_nt20_nh256_hl1.pt
 FLOW_PARAMS = --model-type flow \
-	--num-transformations 30 --num-hidden 256 --mask-type random \
+	--num-transformations 20 --num-hidden 256 --mask-type random \
 	--batch-size 32 --epochs 10 \
 	--model models/$(FLOW_MODEL)
 
@@ -62,6 +62,9 @@ train_flow:
 	$(TRAIN_PART2) $(FLOW_PARAMS)
 train_flow_cuda:
 	$(TRAIN_PART2) $(FLOW_PARAMS) --device cuda
+train_flow_cuda_cont:
+	$(TRAIN_PART2) $(FLOW_PARAMS) --device cuda --continue-train true
+
 
 sample_flow: 
 	$(SAMPLE_PART2) $(FLOW_PARAMS)
@@ -86,12 +89,30 @@ batch_sample_ddpm_cuda:
 	--num-samples 5000 --batch-size 100
 
 batch_sample_flow_cuda:
-	python $(PROJECT_NAME)/part2/main.py sample_save_batches --model-type flow \
-	--device cuda --samples samples/flow/flow_samples.pdf --model models/flow.pt \
-	--num-samples 5000 --num-transformations 30 --num-hidden 256 --mask-type random
+	python $(PROJECT_NAME)/part2/main.py sample_save_batches $(FLOW_PARAMS) \
+	--device cuda --samples samples/flow/flow_samples.pdf --batch-size 100 --num-samples 5000
+
+
+batch_sample_vae_cuda_flowp:
+	python $(PROJECT_NAME)/part2/main.py sample_save_batches $(VAE_PARAMS) --device cuda --samples samples/vae_flow/vae_sample.pdf --num-samples 5000 --batch-size 100
+
+VAE_MODEL_GAUSS = vae_stdG_mvn-dec.pt
+VAE_PARAMS_GAUSS = --model-type vae \
+	--batch-size 100 --epochs 15 \
+	--model models/$(VAE_MODEL_GAUSS)
+
+batch_sample_vae_cuda_gaussp:
+	python $(PROJECT_NAME)/part2/main.py sample_save_batches $(VAE_PARAMS_GAUSS) --device cuda --samples samples/vae_gauss/vae_sample.pdf --num-samples 5000
+
 
 fid_ddpm_cuda:
 	python $(PROJECT_NAME)/part2/fid.py --sample-folder samples/ddpm/batch_samples  --device cuda
 
 fid_flow_cuda:
 	python $(PROJECT_NAME)/part2/fid.py --sample-folder samples/flow/batch_samples  --device cuda
+
+fid_vae_flowp_cuda:
+	python $(PROJECT_NAME)/part2/fid.py --sample-folder samples/vae_flow/batch_samples  --device cuda
+
+fid_vae_gaussp_cuda:
+	python $(PROJECT_NAME)/part2/fid.py --sample-folder samples/vae_gauss/batch_samples  --device cuda
