@@ -51,14 +51,14 @@ def evaluate(model, data_loader, device):
 def evaluate_runs(model, data_loader, device, n_runs):
     losses = []
     # make n_runs evaluations
-    for i in range(n_runs):
+    for _ in range(n_runs):
         run_losses = evaluate(model, data_loader, device)
         losses.append(run_losses)
     
     # compute mean and std
-    mean_loss = torch.mean(torch.tensor(losses))
-    std_loss = torch.std(torch.tensor(losses))
-    return mean_loss.item(), std_loss.item(), losses
+    mean_losses = torch.mean(torch.tensor(losses), dim=1)
+    std_loss = torch.std(torch.tensor(mean_losses))
+    return torch.mean(mean_losses).item(), std_loss.item(), losses
 
 def make_evaluation_results(config, model, data_loader, n_runs):
     _, _, losses = evaluate_runs(model, data_loader, config['device'], n_runs)
@@ -271,8 +271,16 @@ if __name__ == '__main__':
     mnist_test_loader = torch.utils.data.DataLoader(datasets.MNIST('data/', train=False, download=True,
                                                                 transform=transforms.Compose([transforms.ToTensor(), transforms.Lambda(lambda x: (thresshold < x).float().squeeze())])),
                                                     batch_size=args.batch_size, shuffle=True)
-    # Define prior distribution
+    
+    
     M = args.latent_dim
+    D = 784 # H*W - hardcoded since we only consider MNIST
+
+    encoder_net, decoder_net = make_enc_dec_networks(M)
+    decoder = BernoulliDecoder(decoder_net)
+    encoder = GaussianEncoder(encoder_net)
+
+    # Define prior distribution
     if args.prior == 'Standard_Normal':
         prior = GaussianPrior(M)
     
@@ -285,12 +293,10 @@ if __name__ == '__main__':
         prior = FlowPrior(masks=mask, n_transformations=num_transformations, latent_dim=256, device=args.device) #latent dim is num_hidden
 
     elif args.prior == 'Vamp':
-        prior = VampPrior(num_components=50, latent_dim=M, num_pseudo_inputs=500)
+        prior = VampPrior(num_components=50, D=D, encoder=encoder)
 
     # Define VAE model
-    encoder_net, decoder_net = make_enc_dec_networks(M)
-    decoder = BernoulliDecoder(decoder_net)
-    encoder = GaussianEncoder(encoder_net)
+    
     model = VAE(prior, decoder, encoder, args.k).to(device)
 
     # Choose mode to run
@@ -311,7 +317,7 @@ if __name__ == '__main__':
     elif args.mode == 'eval':
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
         pdb.set_trace()
-        evaluate_runs(model, mnist_test_loader, args.device)
+        evaluate_runs(model, mnist_test_loader, args.device, 10)
 
     elif args.mode == 'sample':
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
