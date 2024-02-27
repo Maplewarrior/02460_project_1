@@ -118,13 +118,11 @@ def sample_posterior(model, data_loader, device, num_samples=10000):
     labels = []
     with torch.no_grad():
         for x, y in data_loader:
+            batch_size = x.size(0)
             x = x.to(device)
             q = model.encoder(x)
             z = q.rsample()
-            # posterior_samples.append(z.cpu().numpy())
-            # labels.append(y.cpu().numpy())
-            batch_size = x.size(0)
-
+    
             # Randomly select num_samples from the current batch
             indices = random.sample(range(batch_size), min(num_samples, batch_size))
             posterior_samples.append(z[indices].cpu().numpy())
@@ -152,34 +150,18 @@ def prior_posterior_plot(model, data_loader, device, args):
         
     # Create a meshgrid with latent dim = 2
     nx, ny = (600, 600)
-    # set coords to max of the samples
-    # if args.prior == 'Flow':
-    #     coords = np.max(np.abs(posterior_samples)) * 1
 
-    # else:
     coords = np.max(np.abs(posterior_samples))
-    #coords = 9
 
     x = np.linspace(-coords, coords, nx)
     y = np.linspace(-coords, coords, ny)
     xv, yv = np.meshgrid(x, y)
     meshgrid = np.stack((xv.flatten(), yv.flatten()), axis=1)
     mesh_tensor = torch.FloatTensor(meshgrid).to(device) #shape is (nx*ny, 2) = torch.size([10000, 2])
-
-    #if args.prior == 'Flow':
-        #inverse_mesh_tensor = model.prior().inverse(mesh_tensor)
-     #   log_prior_density = model.prior().log_prob(mesh_tensor).detach().cpu().numpy()
-        # the flow is high for 
-        
-        #log_prior_density = model.prior().log_prob(inverse_mesh_tensor).exp().detach().cpu().numpy()
-        
-        # multiply by the jacobian
-        #log_prior_density = model.prior().log_abs_det_jacobian(mesh_tensor, None).detach().cpu().numpy()
     
     log_prior_density = model.prior().log_prob(mesh_tensor).detach().cpu().numpy()
 
     # Create a contour plot
-    
     # Comments: larger legend, colourbar, title and x and y labels to read easier. A
     plt.rcParams.update({'font.size': 20})
     plt.rcParams.update({'legend.fontsize': 20})
@@ -206,21 +188,6 @@ def prior_posterior_plot(model, data_loader, device, args):
     plt.savefig(f'results/prior_posterior_{priorname}.pdf')
     plt.show()
 
-    # plt.figure(figsize=(14, 14))
-    # contour = plt.contourf(x, y, log_prior_density.reshape(nx, ny), cmap='viridis', levels=60, alpha=0.7)
-    # scatter = plt.scatter(posterior_samples[:, 0], posterior_samples[:, 1], c=labels, cmap='tab10', s=1, alpha=0.8)
-
-    # handles, labels = scatter.legend_elements(num=10)
-    # legend = plt.legend(handles, labels, title="Class Labels", loc='upper right', bbox_to_anchor=(1.2, 1))
-    # colorbar = plt.colorbar(contour, label="Log Prior Density", fraction=0.1, pad=0.01)
-    # priorname = args.prior.replace('_', ' ')
-    # plt.title(f'Contour plot of Log {priorname} Prior Density with Posterior samples')
-    # plt.xlabel('X')
-    # plt.ylabel('Y')
-    # plt.tight_layout(rect=[0, 0, 0.98, 1]) # Rect(left, bottom, right, top)
-    # plt.show()
-
-
 def show_run_summary_statistics(filepath: str):
     with open(filepath, 'r') as f:
         results = json.load(f)
@@ -228,19 +195,16 @@ def show_run_summary_statistics(filepath: str):
     run_keys = [e for e in results.keys() if e.startswith('run')]
     losses = []
     for key in run_keys:
-        losses.extend(results[key])
-    mean = torch.mean(torch.tensor(losses)).item()
-    std = torch.std(torch.tensor(losses)).item()
+        losses.append(results[key])
+    mean_losses = torch.mean(torch.tensor(losses), dim=1)
+    mean = torch.mean(mean_losses).item()
+    std = torch.std(mean_losses).item()
     print(f'Results for model with')
     print(f'Mean across {len(run_keys)} runs: {mean}')
     print(f'Std across {len(run_keys)} runs: {std}')
     return mean, std
 
 if __name__ == '__main__':
-    import pdb
-    # show_run_summary_statistics('results/IWAE_flow_eval.json')
-    # pdb.set_trace()
-
     # Parse arguments
     import argparse
     parser = argparse.ArgumentParser()
@@ -285,7 +249,7 @@ if __name__ == '__main__':
         prior = GaussianPrior(M)
     
     elif args.prior == 'MoG':
-        prior = MixtureOfGaussiansPrior(latent_dim=M, num_components=10)
+        prior = MixtureOfGaussiansPrior(latent_dim=M, num_components=50)
         
     elif args.prior == 'Flow':
         num_transformations = 10
@@ -316,7 +280,6 @@ if __name__ == '__main__':
 
     elif args.mode == 'eval':
         model.load_state_dict(torch.load(args.model, map_location=torch.device(args.device)))
-        pdb.set_trace()
         evaluate_runs(model, mnist_test_loader, args.device, 10)
 
     elif args.mode == 'sample':
@@ -325,13 +288,4 @@ if __name__ == '__main__':
         # Generate samples
         model.eval()
         with torch.no_grad():
-            #samples = model.sample(1)
-            #samples = (model.sample(64)).cpu() 
-            ##save_image(samples.view(64, 1, 28, 28), args.samples)
-
-            # Evaluate the ELBO on the test set
-            #elbos = model.get_elbos(mnist_test_loader, device)
-            #print(f"ELBO on test set: {torch.stack(elbos).mean():.1f}")
-            
-            #Plot posterior samples
             prior_posterior_plot(model, mnist_test_loader, device, args)
